@@ -4,6 +4,7 @@ import (
 	"app-scan-barcode/model"
 	"app-scan-barcode/utils"
 	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -14,12 +15,6 @@ import (
 var db *sql.DB
 
 // Define a new struct for a standardized JSON response
-type Response struct {
-	Code    int         `json:"code"`
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-}
-
 func main() {
 	var err error
 	db, err = sql.Open("sqlite", "products.db")
@@ -84,14 +79,15 @@ func main() {
 	// CRUD Products
 	app.Post("/products", addProduct)
 	app.Get("/products", listProducts)
-	app.Put("/products/:id", editProduct) // Changed from Post to Put for better RESTful practice
+	app.Put("/product/:id", editProduct)
+	app.Get("/product/:id", getProduct)
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
 	app.Get("/transactions", listTransactions)
 
 	// QR Code
-	app.Get("/qrcode/:id", generateQR)
+	app.Post("/print", generateQR)
 
 	log.Fatal(app.Listen(":3000"))
 }
@@ -99,7 +95,7 @@ func main() {
 func addProduct(c *fiber.Ctx) error {
 	product := new(model.Product)
 	if err := c.BodyParser(product); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(Response{
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
 			Code:    http.StatusBadRequest,
 			Message: err.Error(),
 			Data:    nil,
@@ -112,7 +108,7 @@ func addProduct(c *fiber.Ctx) error {
 		product.ProductCode, product.ProductName, product.Colour,
 		product.Size, product.Stock, product.Price, product.CapitalPrice)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
@@ -122,7 +118,7 @@ func addProduct(c *fiber.Ctx) error {
 	id, _ := res.LastInsertId()
 	product.IDProduct = int(id)
 
-	return c.Status(http.StatusCreated).JSON(Response{
+	return c.Status(http.StatusCreated).JSON(model.Response{
 		Code:    http.StatusCreated,
 		Message: "Product added successfully",
 		Data:    product,
@@ -134,7 +130,7 @@ func editProduct(c *fiber.Ctx) error {
 
 	product := new(model.Product)
 	if err := c.BodyParser(product); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(Response{
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
 			Code:    http.StatusBadRequest,
 			Message: err.Error(),
 			Data:    nil,
@@ -147,14 +143,14 @@ func editProduct(c *fiber.Ctx) error {
 		product.ProductCode, product.ProductName, product.Colour,
 		product.Size, product.Stock, product.Price, product.CapitalPrice, id)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
 		})
 	}
 
-	return c.Status(http.StatusOK).JSON(Response{
+	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Product updated successfully",
 		Data:    nil, // or return the updated product
@@ -164,7 +160,7 @@ func editProduct(c *fiber.Ctx) error {
 func listProducts(c *fiber.Ctx) error {
 	rows, err := db.Query("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1")
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
@@ -177,7 +173,7 @@ func listProducts(c *fiber.Ctx) error {
 		var it model.Product
 		if err := rows.Scan(&it.IDProduct, &it.ProductCode, &it.ProductName, &it.Colour, &it.Size,
 			&it.Stock, &it.Price, &it.CapitalPrice, &it.IsActive, &it.CreatedAt, &it.UpdatedAt); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(Response{
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 				Data:    nil,
@@ -186,7 +182,7 @@ func listProducts(c *fiber.Ctx) error {
 		products = append(products, it)
 	}
 
-	return c.Status(http.StatusOK).JSON(Response{
+	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Products retrieved successfully",
 		Data:    products,
@@ -196,7 +192,7 @@ func listProducts(c *fiber.Ctx) error {
 func addTransaction(c *fiber.Ctx) error {
 	trx := new(model.Transaction)
 	if err := c.BodyParser(trx); err != nil {
-		return c.Status(http.StatusBadRequest).JSON(Response{
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
 			Code:    http.StatusBadRequest,
 			Message: err.Error(),
 			Data:    nil,
@@ -210,7 +206,7 @@ func addTransaction(c *fiber.Ctx) error {
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
 		trx.Size, trx.Stock, trx.Discount, trx.Remark)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
@@ -220,14 +216,14 @@ func addTransaction(c *fiber.Ctx) error {
 	// Update stock produk
 	_, err = db.Exec("UPDATE products SET stock = stock - ? WHERE id_product = ?", trx.Stock, trx.IDProduct)
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
 		})
 	}
 
-	return c.Status(http.StatusCreated).JSON(Response{
+	return c.Status(http.StatusCreated).JSON(model.Response{
 		Code:    http.StatusCreated,
 		Message: "Transaction added and stock updated successfully",
 		Data:    nil,
@@ -237,7 +233,7 @@ func addTransaction(c *fiber.Ctx) error {
 func listTransactions(c *fiber.Ctx) error {
 	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions")
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
@@ -250,7 +246,7 @@ func listTransactions(c *fiber.Ctx) error {
 		var it model.Transaction
 		if err := rows.Scan(&it.IDTransaction, &it.IDProduct, &it.ProductCode, &it.ProductName,
 			&it.Colour, &it.Size, &it.Stock, &it.Discount, &it.AdminFee, &it.Remark, &it.CreatedAt); err != nil {
-			return c.Status(http.StatusInternalServerError).JSON(Response{
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 				Data:    nil,
@@ -258,29 +254,62 @@ func listTransactions(c *fiber.Ctx) error {
 		}
 		trxs = append(trxs, it)
 	}
-	return c.Status(http.StatusOK).JSON(Response{
+	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Transactions retrieved successfully",
 		Data:    trxs,
 	})
 }
 
-func generateQR(c *fiber.Ctx) error {
+func getProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	var products model.Product
+	var product model.Product
 
-	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1 and id_product = ?", id).Scan(&products.IDProduct, &products.ProductCode, &products.ProductName, &products.Colour, &products.Size, &products.Stock, &products.Price, &products.CapitalPrice, &products.IsActive, &products.CreatedAt, &products.UpdatedAt)
+	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1 and id_product = ?", id).Scan(&product.IDProduct, &product.ProductCode, &product.ProductName, &product.Colour, &product.Size, &product.Stock, &product.Price, &product.CapitalPrice, &product.IsActive, &product.CreatedAt, &product.UpdatedAt)
 
 	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(Response{
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: err.Error(),
 			Data:    nil,
 		})
 	}
 
-	utils.GenerateQR(c, products)
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Product retrieved successfully",
+		Data:    product,
+	})
+}
 
-	return nil
+func generateQR(c *fiber.Ctx) error {
+	qr := new(model.GenerateQR)
+	if err := c.BodyParser(qr); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	var product model.Product
+
+	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1 and id_product = ?", qr.IDProduct).Scan(&product.IDProduct, &product.ProductCode, &product.ProductName, &product.Colour, &product.Size, &product.Stock, &product.Price, &product.CapitalPrice, &product.IsActive, &product.CreatedAt, &product.UpdatedAt)
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	utils.GenerateQR(product, qr.Qty)
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: fmt.Sprintf("Generate %v QR Success", qr.Qty),
+		Data:    product,
+	})
 }

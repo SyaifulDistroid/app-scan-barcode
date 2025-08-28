@@ -7,8 +7,12 @@ import (
 	"os"
 	"time"
 
+	"strconv"
+	"strings"
+
 	"github.com/disintegration/imaging"
 	"github.com/fogleman/gg"
+	"github.com/go-pdf/fpdf"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/freetype/truetype"
 	"github.com/skip2/go-qrcode"
@@ -21,9 +25,9 @@ func lerpColor(r1, g1, b1, r2, g2, b2 int, t float64) (int, int, int) {
 	return r, g, b
 }
 
-func GenerateQR(c *fiber.Ctx, data model.Product) error {
+func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	content := fmt.Sprintf("%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
-	outfile := "custom_qr.png"
+	outfile := "product-qr.png"
 	qrSize := 800
 	logoPath := "ocik-logo.png"
 	logoRatio := 0.18
@@ -120,7 +124,7 @@ func GenerateQR(c *fiber.Ctx, data model.Product) error {
 	// Teks Harga di bawah QR
 	dc.SetFontFace(facePrice)
 	dc.SetRGB(0.85, 0.3, 0.1)
-	dc.DrawStringAnchored("Rp. 100.000,-", float64(qrSize)/2, float64(qrSize)-35, 0.5, 0.5)
+	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-35, 0.5, 0.5)
 
 	// Simpan PNG
 	outFile, err := os.Create(outfile)
@@ -134,5 +138,79 @@ func GenerateQR(c *fiber.Ctx, data model.Product) error {
 	}
 	fmt.Println("QR custom berhasil dibuat:", outfile)
 
+	return nil
+}
+
+func formatPrice(price float64) string {
+	intPrice := int(price)
+	priceStr := strconv.Itoa(intPrice)
+	var result strings.Builder
+
+	for i, digit := range priceStr {
+		if i > 0 && (len(priceStr)-i)%3 == 0 {
+			result.WriteString(".")
+		}
+		result.WriteRune(digit)
+	}
+
+	return "Rp. " + result.String() + ",-"
+}
+
+func GenerateQR(data model.Product, qty int) error {
+	err := GenerateQRtoFile(&fiber.Ctx{}, data)
+	if err != nil {
+		return err
+	}
+
+	pdf := fpdf.New("P", "mm", "A4", "")
+	pdf.AddPage()
+
+	// Margin & ukuran QR di PDF
+	marginLeft := 15.0
+	marginTop := 15.0
+	qrSize := 30.0 // ukuran per QR (mm)
+	spaceX := -3.0
+	spaceY := 3.0
+
+	maxCols := int((210 - marginLeft) / (qrSize + spaceX))
+	maxRows := int((297 - marginTop) / (qrSize + spaceY))
+
+	col := 0
+	row := 0
+
+	for i := 0; i < qty; i++ {
+		x := marginLeft + float64(col)*(qrSize+spaceX)
+		y := marginTop + float64(row)*(qrSize+spaceY)
+
+		pdf.ImageOptions(
+			"product-qr.png", // hasil dari GenerateQR
+			x-6, y-6,
+			qrSize, qrSize,
+			false,
+			fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
+			0,
+			"",
+		)
+
+		// Next position
+		col++
+		if col >= maxCols {
+			col = 0
+			row++
+		}
+		if row >= maxRows {
+			// Add new page
+			pdf.AddPage()
+			col = 0
+			row = 0
+		}
+	}
+
+	// 3. Simpan PDF
+	filename := fmt.Sprintf("qr_%s.pdf", time.Now().Format("20060102150405"))
+	if err := pdf.OutputFileAndClose(filename); err != nil {
+		return err
+	}
+	fmt.Println("PDF berhasil dibuat:", filename)
 	return nil
 }

@@ -27,3 +27,14 @@ type Transaction struct {
 	Remark        string  `json:"remark"`
 	CreatedAt     string  `json:"created_at"`
 }
+
+type GenerateQR struct {
+	IDProduct int `json:"id_product"`
+	Qty       int `json:"qty"`
+}
+
+type Response struct {
+	Code    int         `json:"code"`
+	Message string      `json:"message"`
+	Data    interface{} `json:"data,omitempty"`
+}

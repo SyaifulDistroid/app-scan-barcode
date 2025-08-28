@@ -25,6 +25,7 @@ require (
 	github.com/andybalholm/brotli v1.1.0 // indirect
 	github.com/disintegration/imaging v1.6.2
 	github.com/fogleman/gg v1.3.0
+	github.com/go-pdf/fpdf v0.9.0
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
