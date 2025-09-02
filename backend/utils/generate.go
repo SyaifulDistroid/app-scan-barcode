@@ -26,14 +26,14 @@ func lerpColor(r1, g1, b1, r2, g2, b2 int, t float64) (int, int, int) {
 }
 
 func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
-	content := fmt.Sprintf("%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
+	content := fmt.Sprintf("ocik-gallery-%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
 	outfile := "product-qr.png"
 	qrSize := 800
 	logoPath := "ocik-logo.png"
-	logoRatio := 0.18
+	logoRatio := 0.25
 
 	// Load font TTF
-	fontBytes, err := os.ReadFile("Ubuntu.ttf") // Ganti dengan font kamu
+	fontBytes, err := os.ReadFile("Montserrat-Bold.ttf") // Ganti dengan font kamu
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
@@ -41,9 +41,9 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
-	faceTitle := truetype.NewFace(ft, &truetype.Options{Size: 32})
-	faceSub := truetype.NewFace(ft, &truetype.Options{Size: 28})
-	facePrice := truetype.NewFace(ft, &truetype.Options{Size: 30})
+	faceTitle := truetype.NewFace(ft, &truetype.Options{Size: 50})
+	faceSub := truetype.NewFace(ft, &truetype.Options{Size: 40})
+	facePrice := truetype.NewFace(ft, &truetype.Options{Size: 50})
 
 	// Ukuran canvas keseluruhan (atas teks + QR + bawah teks)
 	qrOffsetY := 20
@@ -56,11 +56,12 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 
 	// Teks Atas
 	dc.SetFontFace(faceTitle)
-	dc.SetRGB(0.1, 0.1, 0.4) // biru tua
-	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 30, 0.5, 0.5)
+	dc.SetRGB(139, 0, 0) 
+	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 20, 0.5, 0.5)
 
 	dc.SetFontFace(faceSub)
-	dc.DrawStringAnchored(data.Colour, float64(qrSize)/2, 70, 0.5, 0.5)
+	dc.SetRGB(139, 0, 0)
+	dc.DrawStringAnchored(data.Colour, float64(qrSize)/2, 65, 0.5, 0.5)
 
 	// Generate QR code
 	qr, err := qrcode.New(content, qrcode.Highest)
@@ -72,12 +73,12 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	cell := float64(qrSize) / float64(n)
 
 	// Gradient warna
-	r1, g1, b1 := 45, 64, 89
-	r2, g2, b2 := 255, 127, 50
+	r1, g1, b1 := 139, 0, 0  
+	r2, g2, b2 := 0, 0, 139   
 
 	// Clear area tengah untuk logo
 	logoW := int(float64(qrSize) * logoRatio)
-	padding := int(float64(qrSize) * 0.02)
+	padding := int(float64(qrSize) * 0.001)
 	clearW := logoW + padding*2
 	clearX := (qrSize - clearW) / 2
 	clearY := qrOffsetY + (qrSize-clearW)/2
@@ -123,8 +124,8 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 
 	// Teks Harga di bawah QR
 	dc.SetFontFace(facePrice)
-	dc.SetRGB(0.85, 0.3, 0.1)
-	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-35, 0.5, 0.5)
+	dc.SetRGB(0, 0, 139)
+	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-40, 0.5, 0.5)
 
 	// Simpan PNG
 	outFile, err := os.Create(outfile)
@@ -207,7 +208,7 @@ func GenerateQR(data model.Product, qty int) error {
 	}
 
 	// 3. Simpan PDF
-	filename := fmt.Sprintf("qr_%s.pdf", time.Now().Format("20060102150405"))
+	filename := fmt.Sprintf("qr-%s-%v-%v.pdf", time.Now().Format("20060102"),data.IDProduct,qty)
 	if err := pdf.OutputFileAndClose(filename); err != nil {
 		return err
 	}
