@@ -1,18 +1,56 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import Swal from 'sweetalert2';
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e: { preventDefault: () => void; }) => {
+  const handleLogin = async (e: { preventDefault: () => void; }) => {
     e.preventDefault();
-    // Di sini kamu bisa tambahkan logika otentikasi (misal: cek username & password)
-    // Untuk contoh ini, kita langsung navigasi ke halaman admin jika berhasil.
-    console.log('Username:', username);
-    console.log('Password:', password);
-    navigate('/admin');
+    Swal.fire({
+        title: "Loading...",
+        text: "Harap Menunggu",
+        icon: "info",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+    });
+
+    try {
+      const response = await fetch("http://127.0.0.1:3000/login", {
+        method: "POST",
+        body: JSON.stringify({username: username, password: password}),
+          headers: {
+    "Content-Type": "application/json",
+  },
+      });
+
+      if (!response.ok) {
+        Swal.fire({
+          title: "Error",
+          text: "Username atau Password Salah",
+          icon: "error",
+        });
+      }
+
+      const result = await response.json();
+
+      if(result.data.role == "admin") {
+        navigate('/admin');
+      } else if (result.data.role =="staff"){
+        navigate('/scan');
+      }
+
+      Swal.close()
+  
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "Username atau Password Salah",
+        icon: "error",
+      });
+    }
   };
 
   return (
@@ -27,6 +65,7 @@ export default function LoginPage() {
               type='text'
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              maxLength={15}
               className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
               placeholder='Masukkan username'
               required
@@ -39,6 +78,7 @@ export default function LoginPage() {
               type='password'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              maxLength={15}
               className='w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
               placeholder='Masukkan password'
               required

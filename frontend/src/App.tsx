@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import AdminPage from './pages/admin/Admin'
 import LoginPage from './pages/login/Login'
-import StaffPage from './pages/staff/Staff'
+import ScanPage from './pages/scan/scan'
 
 function App() {
 
@@ -16,7 +16,7 @@ function App() {
         <Routes>
           <Route path='/' element={<LoginPage />} />
           <Route path='/admin' element={<AdminPage />} />
-          <Route path='/staff' element={<StaffPage />} />
+          <Route path='/scan' element={<ScanPage />} />
         </Routes>
       </div>
     </Router>
