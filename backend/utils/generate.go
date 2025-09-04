@@ -10,11 +10,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/disintegration/imaging"
+	// "github.com/disintegration/imaging"
 	"github.com/fogleman/gg"
 	"github.com/go-pdf/fpdf"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang/freetype/truetype"
+	"github.com/google/uuid"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -26,15 +27,17 @@ func lerpColor(r1, g1, b1, r2, g2, b2 int, t float64) (int, int, int) {
 }
 
 func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
-	content := fmt.Sprintf("ocik-gallery-%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
+	// contentAwal := fmt.Sprintf("ocik-gallery-%s-%s", time.Now().Format("2006-01-02"), data.ProductCode)
+	uid := uuid.New()
+	content := fmt.Sprintf("%s-%v", uid, data.IDProduct)
 	barcodeDir := "./public/barcode"
 	if _, err := os.Stat(barcodeDir); os.IsNotExist(err) {
 		os.MkdirAll(barcodeDir, os.ModePerm)
 	}
 	outfile := fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct)
 	qrSize := 800
-	logoPath := "./public/ocik-logo.png"
-	logoRatio := 0.25
+	// logoPath := "./public/ocik-logo.png"
+	// logoRatio := 0.10
 
 	// Load font TTF
 	fontBytes, err := os.ReadFile("Montserrat-Bold.ttf") // Ganti dengan font kamu
@@ -77,19 +80,19 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	cell := float64(qrSize) / float64(n)
 
 	// Gradient warna
-	r1, g1, b1 := 139, 0, 0
-	r2, g2, b2 := 0, 0, 139
+	r1, g1, b1 := 0, 0, 0
+	r2, g2, b2 := 0, 0, 0
 
 	// Clear area tengah untuk logo
-	logoW := int(float64(qrSize) * logoRatio)
-	padding := int(float64(qrSize) * 0.001)
-	clearW := logoW + padding*2
-	clearX := (qrSize - clearW) / 2
-	clearY := qrOffsetY + (qrSize-clearW)/2
+	// logoW := int(float64(qrSize) * logoRatio)
+	// padding := int(float64(qrSize) * 0.001)
+	// clearW := logoW + padding*2
+	// clearX := (qrSize - clearW) / 2
+	// clearY := qrOffsetY + (qrSize-clearW)/2
 
 	dc.Push()
 	dc.SetRGB(1, 1, 1)
-	dc.DrawRectangle(float64(clearX), float64(clearY), float64(clearW), float64(clearW))
+	// dc.DrawRectangle(float64(clearX), float64(clearY), float64(clearW), float64(clearW))
 	dc.Fill()
 	dc.Pop()
 
@@ -108,10 +111,10 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 			cy := (float64(y)+0.5)*cell + float64(qrOffsetY)
 			radius := cell * 0.45
 
-			if cx+radius > float64(clearX) && cx-radius < float64(clearX+clearW) &&
-				cy+radius > float64(clearY) && cy-radius < float64(clearY+clearW) {
-				continue
-			}
+			// if cx+radius > float64(clearX) && cx-radius < float64(clearX+clearW) &&
+			// 	cy+radius > float64(clearY) && cy-radius < float64(clearY+clearW) {
+			// 	continue
+			// }
 
 			dc.DrawCircle(cx, cy, radius)
 			dc.Fill()
@@ -119,12 +122,12 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	}
 
 	// Tambahkan logo
-	logoImg, err := imaging.Open(logoPath)
-	if err != nil {
-		return c.Status(500).SendString(err.Error())
-	}
-	resizedLogo := imaging.Resize(logoImg, logoW, 0, imaging.Lanczos)
-	dc.DrawImageAnchored(resizedLogo, qrSize/2, qrOffsetY+qrSize/2, 0.5, 0.5)
+	// logoImg, err := imaging.Open(logoPath)
+	// if err != nil {
+	// 	return c.Status(500).SendString(err.Error())
+	// }
+	// resizedLogo := imaging.Resize(logoImg, logoW, 0, imaging.Lanczos)
+	// dc.DrawImageAnchored(resizedLogo, qrSize/2, qrOffsetY+qrSize/2, 0.5, 0.5)
 
 	// Teks Harga di bawah QR
 	dc.SetFontFace(facePrice)

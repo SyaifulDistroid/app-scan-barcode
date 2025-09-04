@@ -21,7 +21,7 @@ type Transaction struct {
 	ProductName   string  `json:"product_name"`
 	Colour        string  `json:"colour"`
 	Size          string  `json:"size"`
-	Stock         int     `json:"stock"`
+	Qty         int     `json:"stock"`
 	Discount      float64 `json:"discount"`
 	AdminFee      float64 `json:"admin_fee"`
 	Remark        string  `json:"remark"`

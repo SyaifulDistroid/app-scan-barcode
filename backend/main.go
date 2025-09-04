@@ -51,7 +51,7 @@ func main() {
         product_name TEXT,
         colour TEXT,
         size TEXT,
-        stock INTEGER,
+        qty INTEGER,
         discount REAL,
         admin_fee REAL,
         remark TEXT,
@@ -268,10 +268,10 @@ func addTransaction(c *fiber.Ctx) error {
 
 	// Insert transaksi
 	_, err := db.Exec(`
-        INSERT INTO transactions (id_product, product_code, product_name, colour, size, stock, discount, remark)
+        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Stock, trx.Discount, trx.Remark)
+		trx.Size, trx.Qty, trx.Discount, trx.Remark)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -281,7 +281,7 @@ func addTransaction(c *fiber.Ctx) error {
 	}
 
 	// Update stock produk
-	_, err = db.Exec("UPDATE products SET stock = stock - ? WHERE id_product = ?", trx.Stock, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock - ? WHERE id_product = ?", trx.Qty, trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -312,7 +312,7 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions LIMIT ? OFFSET ?", limit, offset)
+	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -326,7 +326,7 @@ func listTransactions(c *fiber.Ctx) error {
 	for rows.Next() {
 		var it model.Transaction
 		if err := rows.Scan(&it.IDTransaction, &it.IDProduct, &it.ProductCode, &it.ProductName,
-			&it.Colour, &it.Size, &it.Stock, &it.Discount, &it.AdminFee, &it.Remark, &it.CreatedAt); err != nil {
+			&it.Colour, &it.Size, &it.Qty, &it.Discount, &it.AdminFee, &it.Remark, &it.CreatedAt); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -360,9 +360,9 @@ func editTransaction(c *fiber.Ctx) error {
 	}
 
 	_, err := db.Exec(`
-		UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, stock=?, discount=?, admin_fee=?, remark=? WHERE id_transaction = ?`,
+		UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, qty=?, discount=?, admin_fee=?, remark=? WHERE id_transaction = ?`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Stock, trx.Discount, trx.AdminFee, trx.Remark, id)
+		trx.Size, trx.Qty, trx.Discount, trx.AdminFee, trx.Remark, id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -382,9 +382,9 @@ func editTransaction(c *fiber.Ctx) error {
 func getTransaction(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var trx model.Transaction
-	err := db.QueryRow("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions WHERE id_transaction = ?", id).Scan(
+	err := db.QueryRow("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions WHERE id_transaction = ?", id).Scan(
 		&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName,
-		&trx.Colour, &trx.Size, &trx.Stock, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.CreatedAt)
+		&trx.Colour, &trx.Size, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.CreatedAt)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
