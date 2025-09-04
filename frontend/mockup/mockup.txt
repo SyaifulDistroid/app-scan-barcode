@@ -457,7 +457,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="mt-8 text-center text-sm text-gray-500">
-        <p>copyright ocikcgallery@2025</p>
+        <p>© Ocik Gallery 2025</p>
       </footer>
 
       {/* Popup Tambah/Edit Produk */}

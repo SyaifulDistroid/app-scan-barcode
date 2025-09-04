@@ -79,7 +79,7 @@ export const dummyTransactionList = [
         product_name: "Kaos Polos",
         colour: "Hitam",
         size: "M",
-        stock: 1,
+        qty: 1,
         discount: 0,
         admin_fee: 2500,
         remark: "Penjualan via Toko Offline",
@@ -92,7 +92,7 @@ export const dummyTransactionList = [
         product_name: "Jaket Parasut",
         colour: "Navy",
         size: "S",
-        stock: 1,
+        qty: 1,
         discount: 10000,
         admin_fee: 0,
         remark: "Penjualan via Shopee",
@@ -105,7 +105,7 @@ export const dummyTransactionList = [
         product_name: "Kaos Polos",
         colour: "Putih",
         size: "L",
-        stock: 2,
+        qty: 2,
         discount: 0,
         admin_fee: 3000,
         remark: "Penjualan via Tokopedia",
@@ -118,7 +118,7 @@ export const dummyTransactionList = [
         product_name: "Celana Jeans",
         colour: "Hitam",
         size: "32",
-        stock: 1,
+        qty: 1,
         discount: 5000,
         admin_fee: 0,
         remark: "Penjualan via WhatsApp",
@@ -131,7 +131,7 @@ export const dummyTransactionList = [
         product_name: "Celana Jeans",
         colour: "Biru",
         size: "30",
-        stock: 1,
+        qty: 1,
         discount: 0,
         admin_fee: 4500,
         remark: "Penjualan via Shopee",
@@ -178,8 +178,8 @@ export default function AdminPage() {
                 key: "size",
             },
             {
-                header: "Stok",
-                key: "stock",
+                header: "Qty",
+                key: "qty",
             },
             {
                 header: "Diskon",
@@ -480,7 +480,8 @@ export default function AdminPage() {
     return (
         <div className="w-full h-screen flex flex-col pt-5 justify-between">
             <div className="flex justify-between">
-                <span className="font-bold text-3xl text-amber-800">
+                <span className="font-bold text-4xl text-amber-800">
+                    <img src="/ocik-logo.png" alt="Ocik Gallery" className="inline-block h-10 mr-3 align-middle" />
                     Ocik Gallery
                 </span>
 
@@ -520,7 +521,7 @@ export default function AdminPage() {
             </div>
 
             <span className="text-gray-700 text-center py-5">
-                copyright ocikcgallery@2025
+                © Ocik Gallery 2025
             </span>
         </div>
     );

@@ -54,7 +54,7 @@ export default function LoginPage() {
         </form>
       </div>
       
-      <span className='text-gray-700 text-center py-5'>copyright ocikcgallery@2025</span>
+      <span className='text-gray-700 text-center py-5'>© Ocik Gallery 2025</span>
     </div>
   );
 }

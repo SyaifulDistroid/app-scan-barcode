@@ -187,11 +187,11 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
           </div>
 
           <div className='flex flex-col gap-2'>
-            <label className='font-bold text-gray-700'>Stok</label>
+            <label className='font-bold text-gray-700'>Qty</label>
             <input
               type='number'
               name='stock'
-              defaultValue={editedTransaction?.stock || ""}
+              defaultValue={editedTransaction?.qty || ""}
               onChange={handleChange}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
             />
