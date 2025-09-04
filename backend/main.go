@@ -76,20 +76,65 @@ func main() {
 
 	app := fiber.New()
 
+	// API Login
+	app.Post("/login", login)
+
 	// CRUD Products
 	app.Post("/products", addProduct)
-	app.Get("/products", listProducts)
+	app.Get("/products", listProducts) //products?page=1&limit=20
 	app.Put("/product/:id", editProduct)
 	app.Get("/product/:id", getProduct)
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
-	app.Get("/transactions", listTransactions)
+	app.Get("/transactions", listTransactions) //transactions?page=1&limit=20
+	app.Put("/transaction/:id", editTransaction)
+	app.Get("/transaction/:id", getTransaction)
 
+	// Static file untuk akses barcode
+	app.Static("/", "./public")
 	// QR Code
 	app.Post("/print", generateQR)
 
 	log.Fatal(app.Listen(":3000"))
+}
+
+// Handler untuk login
+func login(c *fiber.Ctx) error {
+	type LoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+	var req LoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "Invalid request",
+			Data:    nil,
+		})
+	}
+
+	var idAccount int
+	var username, role string
+	err := db.QueryRow("SELECT id_account, username, role FROM account WHERE username = ? AND password = ?", req.Username, req.Password).Scan(&idAccount, &username, &role)
+	if err != nil {
+		return c.Status(http.StatusUnauthorized).JSON(model.Response{
+			Code:    http.StatusUnauthorized,
+			Message: "Username atau password salah",
+			Data:    nil,
+		})
+	}
+
+	// Sukses login
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Login berhasil",
+		Data: fiber.Map{
+			"id_account": idAccount,
+			"username":   username,
+			"role":       role,
+		},
+	})
 }
 
 func addProduct(c *fiber.Ctx) error {
@@ -158,7 +203,22 @@ func editProduct(c *fiber.Ctx) error {
 }
 
 func listProducts(c *fiber.Ctx) error {
-	rows, err := db.Query("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1")
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 10)
+	offset := (page - 1) * limit
+
+	// Hitung total data
+	var total int
+	err := db.QueryRow("SELECT COUNT(*) FROM products WHERE is_active = 1").Scan(&total)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	rows, err := db.Query("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1 LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -185,7 +245,12 @@ func listProducts(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Products retrieved successfully",
-		Data:    products,
+		Data: fiber.Map{
+			"items": products,
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		},
 	})
 }
 
@@ -231,7 +296,21 @@ func addTransaction(c *fiber.Ctx) error {
 }
 
 func listTransactions(c *fiber.Ctx) error {
-	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions")
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 10)
+	offset := (page - 1) * limit
+
+	var total int
+	err := db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&total)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -257,7 +336,64 @@ func listTransactions(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Transactions retrieved successfully",
-		Data:    trxs,
+		Data: fiber.Map{
+			"items": trxs,
+			"total": total,
+			"page":  page,
+			"limit": limit,
+		},
+	})
+}
+
+// Edit transaksi
+func editTransaction(c *fiber.Ctx) error {
+	id := c.Params("id")
+	trx := new(model.Transaction)
+	if err := c.BodyParser(trx); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	_, err := db.Exec(`
+		UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, stock=?, discount=?, admin_fee=?, remark=? WHERE id_transaction = ?`,
+		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
+		trx.Size, trx.Stock, trx.Discount, trx.AdminFee, trx.Remark, id)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Transaction updated successfully",
+		Data:    nil,
+	})
+}
+
+// Get transaksi by id
+func getTransaction(c *fiber.Ctx) error {
+	id := c.Params("id")
+	var trx model.Transaction
+	err := db.QueryRow("SELECT id_transaction, id_product, product_code, product_name, colour, size, stock, discount, admin_fee, remark, created_at FROM transactions WHERE id_transaction = ?", id).Scan(
+		&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName,
+		&trx.Colour, &trx.Size, &trx.Stock, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.CreatedAt)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Transaction retrieved successfully",
+		Data:    trx,
 	})
 }
 
@@ -294,9 +430,7 @@ func generateQR(c *fiber.Ctx) error {
 	}
 
 	var product model.Product
-
 	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1 and id_product = ?", qr.IDProduct).Scan(&product.IDProduct, &product.ProductCode, &product.ProductName, &product.Colour, &product.Size, &product.Stock, &product.Price, &product.CapitalPrice, &product.IsActive, &product.CreatedAt, &product.UpdatedAt)
-
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -305,11 +439,26 @@ func generateQR(c *fiber.Ctx) error {
 		})
 	}
 
-	utils.GenerateQR(product, qr.Qty)
-
+	filename, err := utils.GenerateQR(product, qr.Qty)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	// filename: ./public/print/qr-20240904-123-5.pdf
+	// url: http://host/print/qr-20240904-123-5.pdf
+	publicPath := ""
+	if idx := len("./public/"); len(filename) > idx && filename[:idx] == "./public/" {
+		publicPath = filename[idx:]
+	} else {
+		publicPath = filename
+	}
+	url := fmt.Sprintf("http://%s/%s", c.Hostname(), publicPath)
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: fmt.Sprintf("Generate %v QR Success", qr.Qty),
-		Data:    product,
+		Data:    url,
 	})
 }

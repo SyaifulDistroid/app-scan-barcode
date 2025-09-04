@@ -27,9 +27,13 @@ func lerpColor(r1, g1, b1, r2, g2, b2 int, t float64) (int, int, int) {
 
 func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	content := fmt.Sprintf("ocik-gallery-%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
-	outfile := "product-qr.png"
+	barcodeDir := "./public/barcode"
+	if _, err := os.Stat(barcodeDir); os.IsNotExist(err) {
+		os.MkdirAll(barcodeDir, os.ModePerm)
+	}
+	outfile := fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct)
 	qrSize := 800
-	logoPath := "ocik-logo.png"
+	logoPath := "./public/ocik-logo.png"
 	logoRatio := 0.25
 
 	// Load font TTF
@@ -56,7 +60,7 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 
 	// Teks Atas
 	dc.SetFontFace(faceTitle)
-	dc.SetRGB(139, 0, 0) 
+	dc.SetRGB(139, 0, 0)
 	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 20, 0.5, 0.5)
 
 	dc.SetFontFace(faceSub)
@@ -73,8 +77,8 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	cell := float64(qrSize) / float64(n)
 
 	// Gradient warna
-	r1, g1, b1 := 139, 0, 0  
-	r2, g2, b2 := 0, 0, 139   
+	r1, g1, b1 := 139, 0, 0
+	r2, g2, b2 := 0, 0, 139
 
 	// Clear area tengah untuk logo
 	logoW := int(float64(qrSize) * logoRatio)
@@ -137,7 +141,6 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	if err := png.Encode(outFile, dc.Image()); err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
-	fmt.Println("QR custom berhasil dibuat:", outfile)
 
 	return nil
 }
@@ -157,12 +160,21 @@ func formatPrice(price float64) string {
 	return "Rp. " + result.String() + ",-"
 }
 
-func GenerateQR(data model.Product, qty int) error {
+func GenerateQR(data model.Product, qty int) (string, error) {
 	err := GenerateQRtoFile(&fiber.Ctx{}, data)
 	if err != nil {
-		return err
+		return "",err
 	}
 
+	barcodeDir := "./public/barcode"
+	if _, err := os.Stat(barcodeDir); os.IsNotExist(err) {
+		os.MkdirAll(barcodeDir, os.ModePerm)
+	}
+
+	printDir := "./public/print"
+	if _, err := os.Stat(printDir); os.IsNotExist(err) {
+		os.MkdirAll(printDir, os.ModePerm)
+	}
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 
@@ -184,7 +196,7 @@ func GenerateQR(data model.Product, qty int) error {
 		y := marginTop + float64(row)*(qrSize+spaceY)
 
 		pdf.ImageOptions(
-			"product-qr.png", // hasil dari GenerateQR
+			fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct), // hasil dari GenerateQR
 			x-6, y-6,
 			qrSize, qrSize,
 			false,
@@ -208,10 +220,9 @@ func GenerateQR(data model.Product, qty int) error {
 	}
 
 	// 3. Simpan PDF
-	filename := fmt.Sprintf("qr-%s-%v-%v.pdf", time.Now().Format("20060102"),data.IDProduct,qty)
+	filename := fmt.Sprintf("%s/qr-%s-%v-%v.pdf", printDir, time.Now().Format("20060102"), data.IDProduct, qty)
 	if err := pdf.OutputFileAndClose(filename); err != nil {
-		return err
+		return "",err
 	}
-	fmt.Println("PDF berhasil dibuat:", filename)
-	return nil
+	return filename, nil
 }
