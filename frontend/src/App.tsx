@@ -5,7 +5,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import AdminPage from './pages/admin/Admin'
 import LoginPage from './pages/login/Login'
-import ScanPage from './pages/scan/scan'
+import ScanPage from './pages/scan/Scan'
 
 function App() {
 

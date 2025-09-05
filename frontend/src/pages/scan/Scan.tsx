@@ -1,5 +1,7 @@
 import { Scanner } from "@yudiel/react-qr-scanner";
 import React, { useState, useEffect, useRef } from "react";
+import { TransactionModal } from "../admin/Modal";
+import Swal from "sweetalert2";
 
 // Karena komponen '@yudiel/react-qr-scanner' tidak dapat dimuat,
 // kita akan membuat komponen simulasi scanner sederhana untuk mendemonstrasikan logika.
@@ -65,22 +67,64 @@ const ProductDetailModal = ({ isOpen, onClose, product }) => {
 
 // Komponen Halaman Utama untuk Scanner
 export default function ScanPage() {
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [scannedProduct, setScannedProduct] = useState(null);
+    const [isModalTrxOpen, setIsModalTrxOpen] = useState({isOpen: false, action: ""});
+    const [scannedProduct, setScannedProduct] = useState({
+        id_product: null,
+        product_code: "",
+        product_name: "",
+        colour:"",
+        size:"",
+        stock: 0,
+        price: 0,
+        capital_price:0
+    });
     const [message, setMessage] = useState(
         "Ready To Scan"
     );
     const [isSimulating, setIsSimulating] = useState(false);
     const [scannedCode, setScannedCode] = useState("");
 
+    const getProductDetailByID =  async (productId) => {
+        try {
+            const response = await fetch(`http://127.0.0.1:3000/product/${productId}`, {
+                method: "GET",
+            });
+
+            if (response.status != 200 && response.status !== 201) {
+                Swal.fire({
+                    title: "Error",
+                    text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                    icon: "error",
+                });      
+                
+                return
+            }
+
+            const result = await response.json();
+
+            setScannedProduct({
+                ...scannedProduct,
+                id_product: productId,
+                ...result.data
+            });
+            
+            setIsModalTrxOpen({action: "SCAN", isOpen: true})
+        } catch (error) {
+            Swal.fire({
+                title: "Error",
+                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                icon: "error",
+            });            
+        }
+    }
+
     const handleScan = (resultValue) => {
         if (resultValue && resultValue.length > 0) {
             const scannedCode = resultValue[0].rawValue;
             // Cari produk yang cocok dengan kode yang dipindai
             if (scannedCode) {
-                // setScannedProduct(foundProduct);
-                // setIsModalOpen(true);
-                setMessage(`Produk ditemukan!, Code: ${scannedCode}`);
+                const splittedCode = scannedCode.split("-")
+                getProductDetailByID(splittedCode[splittedCode.length - 1])
             } else {
                 setMessage(
                     `Produk dengan kode "${scannedCode}" tidak ditemukan.`
@@ -89,6 +133,10 @@ export default function ScanPage() {
             }
         }
     };
+    
+    const handleSaveTrx = () => {
+        setIsModalTrxOpen({isOpen: false, action: ""});
+    }
 
     const SimulatedScanner = () => {
         return (
@@ -96,6 +144,7 @@ export default function ScanPage() {
                 <div className=" bg-gray-200 rounded-xl flex items-center justify-center">
                     {true ? (
                         <Scanner onScan={(result) => handleScan(result)} />
+                        // <button onClick={() => handleScan([{rawValue: "1-2-3-4-5-6-2"}])}>INI BISA</button>
                     ) : (
                         <span className="text-sm font-bold text-gray-500">
                             Kamera
@@ -127,15 +176,18 @@ export default function ScanPage() {
                     <SimulatedScanner />
                 </div>
                 <p className="text-gray-600 font-semibold">
-                    {message} : {scannedCode}
+                    {message} {scannedCode && `: ${scannedCode}`}
                 </p>
             </div>
-
-            <ProductDetailModal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                product={scannedProduct}
+            <TransactionModal
+                isOpen={isModalTrxOpen.isOpen}
+                onClose={() => setIsModalTrxOpen({action: "", isOpen: false})}
+                transaction={scannedProduct}
+                onSave={handleSaveTrx}
+                action={isModalTrxOpen.action}
+                callFetchAfterUpdate={null}
             />
+
         </div>
     );
 }

@@ -26,12 +26,14 @@ export default function AdminPage() {
                 method: "GET",
             });
 
-            if (!response.ok) {
+            if (response.status != 200 && response.status !== 201) {
                 Swal.fire({
                     title: "Error",
                     text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
                     icon: "error",
-                });            
+                });      
+                
+                return
             }
 
             const result = await response.json();
@@ -66,10 +68,14 @@ export default function AdminPage() {
             setIsModalTrxOpen({action: "EDIT", isOpen: true});
         };
 
-
-
-        const handleSaveProduct = (editedProduct) => {
+        const handleClose = () => {
+            setIsModalTrxOpen({isOpen: false, action: ""});
+            setSelectedTrx(null)
+        }
+        const handleSaveTrx = () => {
+            handleClose()
         };
+        
         const transactionColumns = [
             {
                 header: "Kode",
@@ -143,7 +149,7 @@ export default function AdminPage() {
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        <button
+                        {/* <button
                             className="p-2 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition"
                             title="Delete"
                         >
@@ -162,7 +168,7 @@ export default function AdminPage() {
                                 ></path>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
-                        </button>
+                        </button> */}
                     </div>
                 ),
             },
@@ -187,9 +193,9 @@ export default function AdminPage() {
 
                 <TransactionModal
                     isOpen={isModalTrxOpen.isOpen}
-                    onClose={() => setIsModalTrxOpen({action: "", isOpen: false})}
+                    onClose={handleClose}
                     transaction={selectedTrx}
-                    onSave={handleSaveProduct}
+                    onSave={handleSaveTrx}
                     action={isModalTrxOpen.action}
                     callFetchAfterUpdate={() => fetchTableData(selectedTab as string, 1, tableData.limit)}
                 />
@@ -202,38 +208,100 @@ export default function AdminPage() {
         const [selectedProduct, setSelectedProduct] = useState(null);
 
         const handleEditProductClick = (product) => {
-            console.log(product)
             setSelectedProduct(product);
             setIsModalProductOpen({isOpen: true, action: "EDIT"});
         };
 
-        const handleSaveProduct = (editedProduct) => {
+        const handleClose = () => {
             setIsModalProductOpen({isOpen: false, action: ""});
+            setSelectedProduct(null)
+        }
+        const handleSaveProduct = () => {
+            handleClose()
         };
 
         const handlePrintProduct = async (selectedProduct) => {
             try {
                 const response = await fetch("http://127.0.0.1:3000/print", {
                     method: "POST",
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({id_product: selectedProduct.id_product, qty: selectedProduct.stock})
                 });
 
-                if (!response.ok) {
-                    setAuthStatus({isLoading: false, errorMsg: "Terdapat Kesalahan, Coba Kembali Nanti"})
+                if (response.status != 200 && response.status !== 201) {
+                    Swal.fire({
+                        title: "Error",
+                        text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+                        icon: "error",
+                    });          
+                    return       
                 }
 
                 const result = await response.json();
 
-                if(result.data.role == "admin") {
-                    navigate('/admin');
-                } else if (result.data.role =="staff"){
-                    navigate('/staff');
-                }
+                Swal.fire({
+                    title: "Sukses",
+                    text: `Berhasil Generate QR Code Data`,
+                    icon: "success",
+                });  
+
+                window.open(result.data, '_blank', 'rel=noopener noreferrer')
         
             } catch (error) {
-                setAuthStatus({isLoading: false, errorMsg: "Terdapat Kesalahan, Coba Kembali Nanti"})
+                Swal.fire({
+                    title: "Error",
+                    text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+                    icon: "error",
+                });                
             }
         }
+
+        const handleDeleteProduct = async (selectedProduct) => {
+            try {
+                Swal.fire({
+                    title: "Apakah Anda Yakin?",
+                    text: "Anda akan menghapus data produk",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#3085d6",
+                    cancelButtonColor: "#d33",
+                    confirmButtonText: "Hapuss"
+                    }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        const response = await fetch(`http://127.0.0.1:3000/product/${selectedProduct.id_product}`, {
+                            method: "DELETE",
+                        });
+                
+                        if (response.status != 200 && response.status !== 201) {
+                            Swal.fire({
+                                title: "Error",
+                                text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
+                                icon: "error",
+                            });            
+
+                            return
+                        }
+                
+                        Swal.fire({
+                            title: "Sukses",
+                            text: `Berhasil Menghapus Data`,
+                            icon: "success",
+                        });  
+                        fetchTableData(selectedTab as string, 1, tableData.limit)
+                    }
+                });
+
+            } catch (error) {
+                Swal.fire({
+                    title: "Error",
+                    text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
+                    icon: "error",
+                });            
+            }
+        }
+
 
         const productColumns = [
             {
@@ -307,6 +375,7 @@ export default function AdminPage() {
                         <button
                             className="p-2 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition"
                             title="Delete"
+                            onClick={() => handleDeleteProduct(item)}
                         >
                             <svg
                                 className="w-5 h-5"
@@ -370,7 +439,7 @@ export default function AdminPage() {
                 />
                 <ProductModal
                     isOpen={isModalProductOpen.isOpen}
-                    onClose={() => setIsModalProductOpen({action: "", isOpen: false})}
+                    onClose={handleClose}
                     product={selectedProduct}
                     onSave={handleSaveProduct}
                     action={isModalProductOpen.action}

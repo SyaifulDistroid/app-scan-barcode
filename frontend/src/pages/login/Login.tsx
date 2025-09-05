@@ -26,12 +26,14 @@ export default function LoginPage() {
   },
       });
 
-      if (!response.ok) {
+      if (response.status != 200 && response.status !== 201) {
         Swal.fire({
           title: "Error",
           text: "Username atau Password Salah",
           icon: "error",
         });
+
+        return
       }
 
       const result = await response.json();
@@ -47,7 +49,7 @@ export default function LoginPage() {
     } catch (error) {
       Swal.fire({
         title: "Error",
-        text: "Username atau Password Salah",
+        text: `Username atau Password Salah ${error}`,
         icon: "error",
       });
     }

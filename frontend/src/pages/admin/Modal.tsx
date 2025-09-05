@@ -10,7 +10,8 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     colour:"",
     size:"",
     stock: 0,
-    price: 0
+    price: 0,
+    capital_price:0
   })
 
   useEffect(() => {
@@ -19,18 +20,22 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     }
   }, [editedProduct])
 
-  useEffect(() => {
-    if(!isOpen) {
+  const resetFormData = () => {
       setFormData({
         product_code: "",
         product_name: "",
         colour:"",
         size:"",
         stock:0,
-        price: 0
-      })
-    }
-  }, [isOpen])
+        price: 0,
+        capital_price: 0
+      })  
+  }
+
+  const handleCancel = () => {
+    resetFormData()
+    onClose()
+  }
 
   const handleSubmitForm = async (e) => {
     e.preventDefault()
@@ -48,6 +53,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
 
         payload.stock = parseInt(payload.stock)
         payload.price = parseInt(payload.price)
+        payload.capital_price = parseInt(payload.capital_price)
 
         let url = ""
 
@@ -66,12 +72,14 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             body: JSON.stringify(formData),
         });
 
-        if (!response.ok) {
+        if (response.status != 200 && response.status !== 201) {
             Swal.fire({
                 title: "Error",
                 text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
                 icon: "error",
-            });            
+            });   
+            
+            return
         }
 
         Swal.fire({
@@ -79,16 +87,18 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
           text: `Berhasil ${action == "EDIT" ? 'Edit' : "Add"} Data`,
           icon: "success",
         });  
-        callFetchAfterUpdate()
-
+        if(callFetchAfterUpdate) {
+          callFetchAfterUpdate()
+        }
         onClose()
     } catch (error) {
-      console.log(error)
-        Swal.fire({
-            title: "Error",
-            text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
-            icon: "error",
-        });            
+      Swal.fire({
+          title: "Error",
+          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
+          icon: "error",
+      });            
+    } finally {
+      resetFormData()
     }
   };
 
@@ -110,7 +120,6 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
       <div className='bg-white p-8 rounded-2xl shadow-lg w-full max-w-lg flex flex-col gap-6'>
         <span className='font-bold text-2xl text-amber-800 text-center'>{action == "EDIT" ? "Edit" : "Tambah"} Produk</span>
-        <button onClick={() => console.log(formData)}>consol</button>
         <form onSubmit={handleSubmitForm} className='flex flex-col gap-4'>
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Kode Produk</label>
@@ -119,7 +128,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='product_code'
               defaultValue={formData.product_code}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
           
@@ -130,7 +139,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='product_name'
               defaultValue={formData.product_name}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -141,7 +150,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='colour'
               defaultValue={formData.colour}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -152,7 +161,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='size'
               defaultValue={formData.size}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -161,9 +170,9 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='stock'
-              defaultValue={formData.stock || editedProduct?.stock || ""}
+              defaultValue={formData.stock || editedProduct?.stock || 0}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -172,14 +181,24 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='price'
-              defaultValue={formData.price || editedProduct?.price || ""}
+              defaultValue={formData.price || editedProduct?.price || 0}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+            />
+          </div>
+          <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>HPP</label>
+            <input
+              type='number'
+              name='capital_price'
+              defaultValue={formData.capital_price || editedProduct?.capital_price || 0}
+              onChange={handleChangeField}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
           <div className='flex justify-end gap-3 mt-4'>
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               type='button'
               className='px-6 py-3 rounded-full font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-200 ease-in'
             >
@@ -201,22 +220,41 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
 
 export function TransactionModal({ isOpen, onClose, transaction: editedTransaction, onSave, action, callFetchAfterUpdate }) {
   const [formData, setFormData] = useState({
+    id_product: null,
     product_code: "",
     product_name: "",
     colour: "",
     size: "",
-    qty: 0,
+    qty: action == "SCAN" ? 1 : 0,
     discount: 0,
     admin_fee: 0,
     remark: ""
   })
-
-  
+ 
   useEffect(() => {
     if(editedTransaction) {
-      setFormData(editedTransaction)
+      setFormData({...formData, ...editedTransaction})
     }
   }, [editedTransaction])
+
+    const resetFormData = () => {
+      setFormData({
+        id_product: null,
+        product_code: "",
+        product_name: "",
+        colour: "",
+        size: "",
+        qty: 0,
+        discount: 0,
+        admin_fee: 0,
+        remark: ""
+      })  
+  }
+
+  const handleCancel = () => {
+    resetFormData()
+    onClose()
+  }
 
   const handleSubmitForm = async (e) => {
     e.preventDefault()
@@ -239,9 +277,12 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
         let url = ""
 
         if(action == "EDIT") {
-          url = `http://127.0.0.1:3000/transaction/${editedProduct.id_product}`
-          payload.id_product = editedProduct.id_product
-        } else if(action == "ADD") {
+          url = `http://127.0.0.1:3000/transaction/${editedTransaction.id_transaction}`
+          payload.id_transaction = parseInt(editedTransaction.id_transaction)
+        } else {
+          if(action == "SCAN") {
+            payload.id_product = parseInt(editedTransaction.id_product)
+          }
           url = "http://127.0.0.1:3000/transactions"
         }
 
@@ -253,12 +294,14 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             body: JSON.stringify(formData),
         });
 
-        if (!response.ok) {
+        if (response.status != 200 && response.status !== 201) {
             Swal.fire({
                 title: "Error",
                 text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
                 icon: "error",
-            });            
+            });       
+            
+            return
         }
 
         Swal.fire({
@@ -266,16 +309,20 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
           text: `Berhasil ${action == "EDIT" ? 'Edit' : "Add"} Data`,
           icon: "success",
         });  
-        callFetchAfterUpdate()
+
+        if(callFetchAfterUpdate) {
+          callFetchAfterUpdate()
+        }
 
         onClose()
     } catch (error) {
-      console.log(error)
         Swal.fire({
             title: "Error",
             text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
             icon: "error",
         });            
+    } finally {
+      resetFormData()
     }
   };
 
@@ -296,7 +343,6 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
       <div className='bg-white overflow-auto p-8 rounded-2xl shadow-lg w-full max-h-10/12 max-w-lg flex flex-col gap-6'>
         <span className='font-bold text-2xl text-amber-800 text-center'>{action == "EDIT" ? "Edit" : "Tambah"} Transaksi</span>
-
         <form onSubmit={handleSubmitForm} className='flex flex-col gap-4'>
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Kode Produk</label>
@@ -305,7 +351,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               name='product_code'
               defaultValue={formData.product_code}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              disabled={action == "SCAN"}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -316,7 +363,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               name='product_name'
               defaultValue={formData.product_name}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              disabled={action == "SCAN"}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -327,7 +375,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               name='colour'
               defaultValue={formData.colour}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              disabled={action == "SCAN"}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -338,7 +387,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               name='size'
               defaultValue={formData.size}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              disabled={action == "SCAN"}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -347,9 +397,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='qty'
-              defaultValue={formData.qty || editedTransaction?.qty || "" }
+              defaultValue={formData.qty || editedTransaction?.qty || 0}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
           
@@ -358,9 +408,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='discount'
-              defaultValue={formData.discount || editedTransaction?.discount || ""}
+              defaultValue={formData.discount || editedTransaction?.discount || 0}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -369,9 +419,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='admin_fee'
-              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || ""}
+              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || 0}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
 
@@ -381,12 +431,12 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               name='remark'
               defaultValue={editedTransaction?.remark || ""}
               onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400'
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             ></textarea>
           </div>
           <div className='flex justify-end gap-3 mt-4'>
             <button
-              onClick={onClose}
+              onClick={handleCancel}
               className='px-6 py-3 rounded-full font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-200 ease-in'
             >
               Batal
