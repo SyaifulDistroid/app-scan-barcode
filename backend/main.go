@@ -86,6 +86,7 @@ func main() {
 	app.Get("/products", listProducts) //products?page=1&limit=20
 	app.Put("/product/:id", editProduct)
 	app.Get("/product/:id", getProduct)
+	app.Delete("/product/:id", deleteProduct)	
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
@@ -462,5 +463,36 @@ func generateQR(c *fiber.Ctx) error {
 		Code:    http.StatusOK,
 		Message: fmt.Sprintf("Generate %v QR Success", qr.Qty),
 		Data:    url,
+	})
+}
+
+
+
+func deleteProduct(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	product := new(model.Product)
+	if err := c.BodyParser(product); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	_, err := db.Exec(`
+        UPDATE products SET is_active=0 WHERE id_product = ?`, id)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Product delete successfully",
+		Data:    nil, // or return the updated product
 	})
 }
