@@ -2,148 +2,60 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../component/table";
 import { TransactionModal, ProductModal } from "./Modal";
-
-export const dummyProductList = [
-    {
-        id_product: 1,
-        product_code: "TS-BLK-M",
-        product_name: "Kaos Polos",
-        colour: "Hitam",
-        size: "M",
-        stock: 50,
-        price: 125000.0,
-        capital_price: 75000.0,
-        is_active: 1,
-        created_at: "2024-05-20T10:00:00Z",
-        updated_at: "2024-05-20T10:00:00Z",
-    },
-    {
-        id_product: 2,
-        product_code: "TS-WHT-L",
-        product_name: "Kaos Polos",
-        colour: "Putih",
-        size: "L",
-        stock: 35,
-        price: 125000.0,
-        capital_price: 75000.0,
-        is_active: 1,
-        created_at: "2024-05-20T10:05:00Z",
-        updated_at: "2024-05-20T10:05:00Z",
-    },
-    {
-        id_product: 3,
-        product_code: "JP-NAV-S",
-        product_name: "Jaket Parasut",
-        colour: "Navy",
-        size: "S",
-        stock: 20,
-        price: 250000.0,
-        capital_price: 150000.0,
-        is_active: 1,
-        created_at: "2024-05-20T10:10:00Z",
-        updated_at: "2024-05-20T10:10:00Z",
-    },
-    {
-        id_product: 4,
-        product_code: "SP-BLU-30",
-        product_name: "Celana Jeans",
-        colour: "Biru",
-        size: "30",
-        stock: 15,
-        price: 300000.0,
-        capital_price: 200000.0,
-        is_active: 1,
-        created_at: "2024-05-20T10:15:00Z",
-        updated_at: "2024-05-20T10:15:00Z",
-    },
-    {
-        id_product: 5,
-        product_code: "SP-BLK-32",
-        product_name: "Celana Jeans",
-        colour: "Hitam",
-        size: "32",
-        stock: 10,
-        price: 300000.0,
-        capital_price: 200000.0,
-        is_active: 1,
-        created_at: "2024-05-20T10:20:00Z",
-        updated_at: "2024-05-20T10:20:00Z",
-    },
-];
-
-export const dummyTransactionList = [
-    {
-        id_transaction: 1,
-        id_product: 1,
-        product_code: "TS-BLK-M",
-        product_name: "Kaos Polos",
-        colour: "Hitam",
-        size: "M",
-        qty: 1,
-        discount: 0,
-        admin_fee: 2500,
-        remark: "Penjualan via Toko Offline",
-        created_at: "2025-09-03T10:00:00Z",
-    },
-    {
-        id_transaction: 2,
-        id_product: 3,
-        product_code: "JP-NAV-S",
-        product_name: "Jaket Parasut",
-        colour: "Navy",
-        size: "S",
-        qty: 1,
-        discount: 10000,
-        admin_fee: 0,
-        remark: "Penjualan via Shopee",
-        created_at: "2025-09-03T11:30:00Z",
-    },
-    {
-        id_transaction: 3,
-        id_product: 2,
-        product_code: "TS-WHT-L",
-        product_name: "Kaos Polos",
-        colour: "Putih",
-        size: "L",
-        qty: 2,
-        discount: 0,
-        admin_fee: 3000,
-        remark: "Penjualan via Tokopedia",
-        created_at: "2025-09-03T12:45:00Z",
-    },
-    {
-        id_transaction: 4,
-        id_product: 5,
-        product_code: "SP-BLK-32",
-        product_name: "Celana Jeans",
-        colour: "Hitam",
-        size: "32",
-        qty: 1,
-        discount: 5000,
-        admin_fee: 0,
-        remark: "Penjualan via WhatsApp",
-        created_at: "2025-09-03T14:00:00Z",
-    },
-    {
-        id_transaction: 5,
-        id_product: 4,
-        product_code: "SP-BLU-30",
-        product_name: "Celana Jeans",
-        colour: "Biru",
-        size: "30",
-        qty: 1,
-        discount: 0,
-        admin_fee: 4500,
-        remark: "Penjualan via Shopee",
-        created_at: "2025-09-03T15:15:00Z",
-    },
-];
+import Swal from "sweetalert2";
 
 export default function AdminPage() {
     const navigate = useNavigate();
 
     const [searchParams] = useSearchParams();
     const selectedTab = searchParams.get("tab");
+    
+    const [tableData, setTableData] = useState({
+        items: [],
+        limit: 10,
+        page: 1,
+        total: 0
+    })
+
+    const fetchTableData = async (selectedTab:string, page=1, limit=10) => {
+
+        const url = `http://127.0.0.1:3000/${selectedTab == "product" ? "products" : "transactions"}?page=${page}&limit=${limit}`
+
+        try {
+            const response = await fetch(url, {
+                method: "GET",
+            });
+
+            if (!response.ok) {
+                Swal.fire({
+                    title: "Error",
+                    text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                    icon: "error",
+                });            
+            }
+
+            const result = await response.json();
+
+            let data = result.data
+            if(data.items == null) {
+                data.items = []
+            }
+
+            setTableData(data)
+        } catch (error) {
+            Swal.fire({
+                title: "Error",
+                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                icon: "error",
+            });            
+        }
+    }
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage > 0 && newPage <= Math.ceil(tableData.total / tableData.limit)) {
+            fetchTableData(selectedTab as string, newPage, tableData.limit)
+        }
+    };
 
     const Transaction = () => {
         const [isModalTrxOpen, setIsModalTrxOpen] = useState({isOpen: false, action: ""});
@@ -154,11 +66,9 @@ export default function AdminPage() {
             setIsModalTrxOpen({action: "EDIT", isOpen: true});
         };
 
+
+
         const handleSaveProduct = (editedProduct) => {
-            // setProducts(products.map(p =>
-            //   p.id_product === editedProduct.id_product ? editedProduct : p
-            // ));
-            // setIsModalOpen(false);
         };
         const transactionColumns = [
             {
@@ -259,7 +169,7 @@ export default function AdminPage() {
         ];
         return (
             <div className="w-3/4 flex flex-col gap-10 mx-auto ease-in duration-150">
-                <div className="flex flex-row justify-between">
+                <div className="flex flex-col md:flex-row items-center justify-between">
                     <span className="font-bold text-3xl text-amber-800">
                         Transaksi
                     </span>
@@ -270,9 +180,9 @@ export default function AdminPage() {
                 </div>
 
                 <Table
-                    data={dummyTransactionList}
+                    data={tableData}
                     columns={transactionColumns}
-                    itemsPerPage={3}
+                    onPageChange={handlePageChange}
                 />
 
                 <TransactionModal
@@ -281,6 +191,7 @@ export default function AdminPage() {
                     transaction={selectedTrx}
                     onSave={handleSaveProduct}
                     action={isModalTrxOpen.action}
+                    callFetchAfterUpdate={() => fetchTableData(selectedTab as string, 1, tableData.limit)}
                 />
             </div>
         );
@@ -289,23 +200,40 @@ export default function AdminPage() {
     const Product = () => {
         const [isModalProductOpen, setIsModalProductOpen] = useState({isOpen: false, action: ""});
         const [selectedProduct, setSelectedProduct] = useState(null);
-        const [products, setProducts] = useState(dummyProductList);
 
         const handleEditProductClick = (product) => {
+            console.log(product)
             setSelectedProduct(product);
-            setIsModalProductOpen({isOpen: true, action: ""});
+            setIsModalProductOpen({isOpen: true, action: "EDIT"});
         };
 
         const handleSaveProduct = (editedProduct) => {
-            setProducts(
-                products.map((p) =>
-                    p.id_product === editedProduct.id_product
-                        ? editedProduct
-                        : p
-                )
-            );
             setIsModalProductOpen({isOpen: false, action: ""});
         };
+
+        const handlePrintProduct = async (selectedProduct) => {
+            try {
+                const response = await fetch("http://127.0.0.1:3000/print", {
+                    method: "POST",
+                    body: JSON.stringify({id_product: selectedProduct.id_product, qty: selectedProduct.stock})
+                });
+
+                if (!response.ok) {
+                    setAuthStatus({isLoading: false, errorMsg: "Terdapat Kesalahan, Coba Kembali Nanti"})
+                }
+
+                const result = await response.json();
+
+                if(result.data.role == "admin") {
+                    navigate('/admin');
+                } else if (result.data.role =="staff"){
+                    navigate('/staff');
+                }
+        
+            } catch (error) {
+                setAuthStatus({isLoading: false, errorMsg: "Terdapat Kesalahan, Coba Kembali Nanti"})
+            }
+        }
 
         const productColumns = [
             {
@@ -331,7 +259,6 @@ export default function AdminPage() {
             {
                 header: "Harga",
                 key: "price",
-                // Menggunakan fungsi render untuk kustomisasi tampilan data
                 render: (item) =>
                     new Intl.NumberFormat("id-ID", {
                         style: "currency",
@@ -400,6 +327,7 @@ export default function AdminPage() {
                         <button
                             className="p-2 rounded-full bg-yellow-500 text-white shadow-md hover:bg-yellow-600 transition"
                             title="Print"
+                            onClick={() => handlePrintProduct(item)}
                         >
                             <svg
                                 className="w-5 h-5"
@@ -422,9 +350,10 @@ export default function AdminPage() {
                 ),
             },
         ];
+
         return (
             <div className="w-3/4 flex flex-col gap-10 mx-auto ease-in duration-150">
-                <div className="flex flex-row justify-between">
+                <div className="flex flex-col md:flex-row justify-between">
                     <span className="font-bold text-3xl text-amber-800">
                         Produk
                     </span>
@@ -435,9 +364,9 @@ export default function AdminPage() {
                 </div>
 
                 <Table
-                    data={dummyProductList}
+                    data={tableData}
                     columns={productColumns}
-                    itemsPerPage={3}
+                    onPageChange={handlePageChange}
                 />
                 <ProductModal
                     isOpen={isModalProductOpen.isOpen}
@@ -445,6 +374,8 @@ export default function AdminPage() {
                     product={selectedProduct}
                     onSave={handleSaveProduct}
                     action={isModalProductOpen.action}
+                    callFetchAfterUpdate={() => fetchTableData(selectedTab as string, 1, tableData.limit)}
+
                 />
             </div>
         );
@@ -474,12 +405,15 @@ export default function AdminPage() {
     useEffect(() => {
         if (!selectedTab) {
             navigate(`/admin?tab=product`);
+        } else {
+            fetchTableData(selectedTab)
         }
     }, [selectedTab]);
 
+
     return (
-        <div className="w-full h-screen flex flex-col pt-5 justify-between">
-            <div className="flex justify-between">
+        <div className="w-full h-full flex flex-col pt-5 justify-between">
+            <div className="flex flex-col md:flex-row justify-between items-center">
                 <span className="font-bold text-4xl text-amber-800">
                     <img src="/ocik-logo.png" alt="Ocik Gallery" className="inline-block h-10 mr-3 align-middle" />
                     Ocik Gallery
@@ -494,8 +428,8 @@ export default function AdminPage() {
             </div>
 
             <div className="flex flex-col h-full py-5 gap-5">
-                <div className="w-1/2 mx-auto">
-                    <div className="w-full rounded-2xl px-3 py-3 bg-white shadow-md flex flex-row gap-3">
+                <div className="w-full md:w-1/2 mx-auto">
+                    <div className="w-full rounded-2xl px-3 py-3 bg-white shadow-md flex flex-col md:flex-row gap-3">
                         {tabMenuList.map((tab) => (
                             <button
                                 onClick={() => handleChangeTab(tab.value)}

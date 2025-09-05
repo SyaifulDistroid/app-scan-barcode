@@ -1,8 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 
-
-
-const formatCurrency = (amount: number) => {
+const formatCurrency = (amount) => {
   if (typeof amount !== 'number') return amount;
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -12,17 +10,11 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-export default function Table({ data, columns, itemsPerPage = 3 }) {
-  const [currentPage, setCurrentPage] = useState(1);
+export default function Table({ data, columns, onPageChange }) {
+  const { items, page, limit, total } = data;
 
-  // Logic for pagination
-  const totalPages = Math.ceil(data.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentItems = data.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const totalPages = Math.ceil(total / limit);
+  const startIndex = (page - 1) * limit;
 
   return (
     <div className='w-full overflow-x-auto flex flex-col gap-4'>
@@ -41,7 +33,7 @@ export default function Table({ data, columns, itemsPerPage = 3 }) {
             </tr>
           </thead>
           <tbody className='bg-white divide-y divide-gray-200'>
-            {currentItems.map((item, index) => (
+            {items.map((item, index) => (
               <tr
                 key={item.id_product || index}
                 className={`${(index + 1) % 2 === 0 ? 'bg-orange-50' : ''} hover:bg-orange-100 ease-in duration-100 text-center`}
@@ -62,10 +54,10 @@ export default function Table({ data, columns, itemsPerPage = 3 }) {
       {totalPages > 1 && (
         <div className='flex justify-end items-center gap-2'>
           <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
+            onClick={() => onPageChange(page - 1)}
+            disabled={page === 1}
             className={`px-4 py-2 rounded-full font-bold ${
-              currentPage === 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-400 text-white hover:bg-orange-500'
+              page === 1 ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-400 text-white hover:bg-orange-500'
             } transition duration-200 ease-in`}
           >
             Previous
@@ -73,19 +65,19 @@ export default function Table({ data, columns, itemsPerPage = 3 }) {
           {Array.from({ length: totalPages }, (_, i) => (
             <button
               key={i + 1}
-              onClick={() => handlePageChange(i + 1)}
+              onClick={() => onPageChange(i + 1)}
               className={`w-10 h-10 rounded-full font-bold ${
-                currentPage === i + 1 ? 'bg-orange-400 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
+                page === i + 1 ? 'bg-orange-400 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'
               } transition duration-200 ease-in shadow-md`}
             >
               {i + 1}
             </button>
           ))}
           <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
+            onClick={() => onPageChange(page + 1)}
+            disabled={page === totalPages}
             className={`px-4 py-2 rounded-full font-bold ${
-              currentPage === totalPages ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-400 text-white hover:bg-orange-500'
+              page === totalPages ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-orange-400 text-white hover:bg-orange-500'
             } transition duration-200 ease-in`}
           >
             Next

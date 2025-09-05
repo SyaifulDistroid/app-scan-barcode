@@ -64,7 +64,7 @@ const ProductDetailModal = ({ isOpen, onClose, product }) => {
 };
 
 // Komponen Halaman Utama untuk Scanner
-export default function QRScannerPage() {
+export default function ScanPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [scannedProduct, setScannedProduct] = useState(null);
     const [message, setMessage] = useState(
