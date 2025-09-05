@@ -86,7 +86,7 @@ export default function ScanPage() {
 
     const getProductDetailByID =  async (productId) => {
         try {
-            const response = await fetch(`http://127.0.0.1:3000/product/${productId}`, {
+            const response = await fetch(`https://127.0.0.1:3000/product/${productId}`, {
                 method: "GET",
             });
 

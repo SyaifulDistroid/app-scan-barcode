@@ -58,10 +58,10 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
         let url = ""
 
         if(action == "EDIT") {
-          url = `http://127.0.0.1:3000/product/${editedProduct.id_product}`
+          url = `https://127.0.0.1:3000/product/${editedProduct.id_product}`
           payload.id_product = editedProduct.id_product
         } else if(action == "ADD") {
-          url = "http://127.0.0.1:3000/products"
+          url = "https://127.0.0.1:3000/products"
         }
 
         const response = await fetch(url, {
@@ -277,13 +277,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
         let url = ""
 
         if(action == "EDIT") {
-          url = `http://127.0.0.1:3000/transaction/${editedTransaction.id_transaction}`
+          url = `https://127.0.0.1:3000/transaction/${editedTransaction.id_transaction}`
           payload.id_transaction = parseInt(editedTransaction.id_transaction)
         } else {
           if(action == "SCAN") {
             payload.id_product = parseInt(editedTransaction.id_product)
           }
-          url = "http://127.0.0.1:3000/transactions"
+          url = "https://127.0.0.1:3000/transactions"
         }
 
         const response = await fetch(url, {

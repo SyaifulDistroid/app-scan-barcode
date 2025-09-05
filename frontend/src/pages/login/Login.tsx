@@ -18,7 +18,7 @@ export default function LoginPage() {
     });
 
     try {
-      const response = await fetch("http://127.0.0.1:3000/login", {
+      const response = await fetch("https://127.0.0.1:3000/login", {
         method: "POST",
         body: JSON.stringify({username: username, password: password}),
           headers: {
