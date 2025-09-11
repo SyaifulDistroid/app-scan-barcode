@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../component/table";
 import { TransactionModal, ProductModal } from "./Modal";
 import Swal from "sweetalert2";
+import { baseUrlAPI } from "../../utils/constant";
 
 export default function AdminPage() {
     const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function AdminPage() {
 
     const fetchTableData = async (selectedTab:string, page=1, limit=10) => {
 
-        const url = `https://127.0.0.1:3000/${selectedTab == "product" ? "products" : "transactions"}?page=${page}&limit=${limit}`
+        const url = `${baseUrlAPI}${selectedTab == "product" ? "products" : "transactions"}?page=${page}&limit=${limit}`
 
         try {
             const response = await fetch(url, {
@@ -222,7 +223,7 @@ export default function AdminPage() {
 
         const handlePrintProduct = async (selectedProduct) => {
             try {
-                const response = await fetch("https://127.0.0.1:3000/print", {
+                const response = await fetch(`${baseUrlAPI}print`, {
                     method: "POST",
                     headers: {
                         'Content-Type': 'application/json'
@@ -270,7 +271,7 @@ export default function AdminPage() {
                     confirmButtonText: "Hapuss"
                     }).then(async (result) => {
                     if (result.isConfirmed) {
-                        const response = await fetch(`https://127.0.0.1:3000/product/${selectedProduct.id_product}`, {
+                        const response = await fetch(`${baseUrlAPI}product/${selectedProduct.id_product}`, {
                             method: "DELETE",
                         });
                 

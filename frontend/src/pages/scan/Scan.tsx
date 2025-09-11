@@ -2,6 +2,7 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import React, { useState, useEffect, useRef } from "react";
 import { TransactionModal } from "../admin/Modal";
 import Swal from "sweetalert2";
+import { baseUrlAPI } from "../../utils/constant";
 
 // Karena komponen '@yudiel/react-qr-scanner' tidak dapat dimuat,
 // kita akan membuat komponen simulasi scanner sederhana untuk mendemonstrasikan logika.
@@ -86,7 +87,7 @@ export default function ScanPage() {
 
     const getProductDetailByID =  async (productId) => {
         try {
-            const response = await fetch(`https://127.0.0.1:3000/product/${productId}`, {
+            const response = await fetch(`${baseUrlAPI}product/${productId}`, {
                 method: "GET",
             });
 

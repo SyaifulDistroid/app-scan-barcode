@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import { baseUrlAPI } from '../../utils/constant';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ export default function LoginPage() {
     });
 
     try {
-      const response = await fetch("https://127.0.0.1:3000/login", {
+      const response = await fetch(`${baseUrlAPI}login`, {
         method: "POST",
         body: JSON.stringify({username: username, password: password}),
           headers: {
@@ -47,6 +48,7 @@ export default function LoginPage() {
       Swal.close()
   
     } catch (error) {
+      console.log(error.message)
       Swal.fire({
         title: "Error",
         text: `Username atau Password Salah ${error}`,

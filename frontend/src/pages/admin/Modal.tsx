@@ -1,5 +1,6 @@
 import React, { useState, useEffect, act } from 'react';
 import Swal from 'sweetalert2';
+import { baseUrlAPI } from '../../utils/constant';
 
 
 export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, action, callFetchAfterUpdate }) {
@@ -58,10 +59,10 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
         let url = ""
 
         if(action == "EDIT") {
-          url = `https://127.0.0.1:3000/product/${editedProduct.id_product}`
+          url = `${baseUrlAPI}product/${editedProduct.id_product}`
           payload.id_product = editedProduct.id_product
         } else if(action == "ADD") {
-          url = "https://127.0.0.1:3000/products"
+          url = `${baseUrlAPI}products`
         }
 
         const response = await fetch(url, {
@@ -277,13 +278,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
         let url = ""
 
         if(action == "EDIT") {
-          url = `https://127.0.0.1:3000/transaction/${editedTransaction.id_transaction}`
+          url = `${baseUrlAPI}transaction/${editedTransaction.id_transaction}`
           payload.id_transaction = parseInt(editedTransaction.id_transaction)
         } else {
           if(action == "SCAN") {
             payload.id_product = parseInt(editedTransaction.id_product)
           }
-          url = "https://127.0.0.1:3000/transactions"
+          url = `${baseUrlAPI}transactions`
         }
 
         const response = await fetch(url, {
