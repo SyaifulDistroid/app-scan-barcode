@@ -35,7 +35,7 @@ export default function Table({ data, columns, onPageChange }) {
           <tbody className='bg-white divide-y divide-gray-200'>
             {items.map((item, index) => (
               <tr
-                key={item.id_product || index}
+                key={index}
                 className={`${(index + 1) % 2 === 0 ? 'bg-orange-50' : ''} hover:bg-orange-100 ease-in duration-100 text-center`}
               >
                 <td className='p-5 text-sm text-gray-500'>{startIndex + index + 1}</td>

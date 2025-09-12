@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../component/table";
-import { TransactionModal, ProductModal } from "./Modal";
+import { TransactionModal, ProductModal, PrintProductModal } from "./Modal";
 import Swal from "sweetalert2";
 import { baseUrlAPI } from "../../utils/constant";
 
@@ -18,7 +18,28 @@ export default function AdminPage() {
         total: 0
     })
 
-    const fetchTableData = async (selectedTab:string, page=1, limit=10) => {
+    const [masterProductData, setMasterProductData] = useState({
+        items: [],
+    })
+
+    const [isModalTrxOpen, setIsModalTrxOpen] = useState({isOpen: false, action: ""});
+    const [selectedTrx, setSelectedTrx] = useState(null);
+
+    const [isModalProductOpen, setIsModalProductOpen] = useState({isOpen: false, action: ""});
+    const [selectedProduct, setSelectedProduct] = useState(null);
+
+    const [isModalPrintProductOpen, setIsModalPrintProductOpen] = useState({isOpen: false});
+
+    const resetTableData = () => {
+        setTableData({
+            items: [],
+            limit: 10,
+            page: 1,
+            total: 0
+        })
+    }
+
+    const fetchTableData = async (selectedTab:string, page=1, limit=10, option=null) => {
 
         const url = `${baseUrlAPI}${selectedTab == "product" ? "products" : "transactions"}?page=${page}&limit=${limit}`
 
@@ -44,11 +65,23 @@ export default function AdminPage() {
                 data.items = []
             }
 
-            setTableData(data)
+            if(!option?.forMaster) {
+                setTableData(data)
+            } else {
+                const options = data.items.map((product, index) => ({
+                    label: product.product_name,
+                    value: product.id_product,
+                    detail: JSON.stringify({
+                        ...data.items[index]
+                    })
+                }))
+                setMasterProductData(options)
+            }
+
         } catch (error) {
             Swal.fire({
                 title: "Error",
-                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refreshs",
                 icon: "error",
             });            
         }
@@ -60,11 +93,11 @@ export default function AdminPage() {
         }
     };
 
+
     const Transaction = () => {
-        const [isModalTrxOpen, setIsModalTrxOpen] = useState({isOpen: false, action: ""});
-        const [selectedTrx, setSelectedTrx] = useState(null);
 
         const handleEditProductClick = (trx) => {
+            fetchTableData("product", 1, 9999, {forMaster: true})
             setSelectedTrx(trx);
             setIsModalTrxOpen({action: "EDIT", isOpen: true});
         };
@@ -76,6 +109,11 @@ export default function AdminPage() {
         const handleSaveTrx = () => {
             handleClose()
         };
+
+        const handleClickAddTransaction = () => {
+            fetchTableData("product", 1, 9999, {forMaster: true})
+            setIsModalTrxOpen({action: "ADD", isOpen: true})
+        }
         
         const transactionColumns = [
             {
@@ -107,7 +145,7 @@ export default function AdminPage() {
                         currency: "IDR",
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
-                    }).format(item.discount),
+                    }).format(item.discount || 0),
             },
             {
                 header: "Admin",
@@ -118,7 +156,7 @@ export default function AdminPage() {
                         currency: "IDR",
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
-                    }).format(item.admin_fee),
+                    }).format(item.admin_fee || 0),
             },
             {
                 header: "Keterangan",
@@ -181,7 +219,7 @@ export default function AdminPage() {
                         Transaksi
                     </span>
 
-                    <button onClick={() => setIsModalTrxOpen({action: "ADD", isOpen: true})} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-orange-400 px-7 py-3 rounded-full shadow-md">
+                    <button onClick={handleClickAddTransaction} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-orange-400 px-7 py-3 rounded-full shadow-md">
                         + Tambah Transaksi
                     </button>
                 </div>
@@ -198,6 +236,7 @@ export default function AdminPage() {
                     transaction={selectedTrx}
                     onSave={handleSaveTrx}
                     action={isModalTrxOpen.action}
+                    masterDataProduct={masterProductData}
                     callFetchAfterUpdate={() => fetchTableData(selectedTab as string, 1, tableData.limit)}
                 />
             </div>
@@ -205,8 +244,7 @@ export default function AdminPage() {
     };
 
     const Product = () => {
-        const [isModalProductOpen, setIsModalProductOpen] = useState({isOpen: false, action: ""});
-        const [selectedProduct, setSelectedProduct] = useState(null);
+
 
         const handleEditProductClick = (product) => {
             setSelectedProduct(product);
@@ -214,49 +252,22 @@ export default function AdminPage() {
         };
 
         const handleClose = () => {
-            setIsModalProductOpen({isOpen: false, action: ""});
             setSelectedProduct(null)
+
+            if(isModalPrintProductOpen.isOpen) {
+                setIsModalPrintProductOpen({isOpen: false}); 
+            } else if(isModalProductOpen.isOpen) {
+                setIsModalProductOpen({isOpen: false, action: ""});
+            }   
         }
+
         const handleSaveProduct = () => {
             handleClose()
         };
 
-        const handlePrintProduct = async (selectedProduct) => {
-            try {
-                const response = await fetch(`${baseUrlAPI}print`, {
-                    method: "POST",
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({id_product: selectedProduct.id_product, qty: selectedProduct.stock})
-                });
-
-                if (response.status != 200 && response.status !== 201) {
-                    Swal.fire({
-                        title: "Error",
-                        text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
-                        icon: "error",
-                    });          
-                    return       
-                }
-
-                const result = await response.json();
-
-                Swal.fire({
-                    title: "Sukses",
-                    text: `Berhasil Generate QR Code Data`,
-                    icon: "success",
-                });  
-
-                window.open(result.data, '_blank', 'rel=noopener noreferrer')
-        
-            } catch (error) {
-                Swal.fire({
-                    title: "Error",
-                    text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
-                    icon: "error",
-                });                
-            }
+        const handlePrintProduct = (product) => {
+            setSelectedProduct(product);
+            setIsModalPrintProductOpen({isOpen: true});
         }
 
         const handleDeleteProduct = async (selectedProduct) => {
@@ -334,7 +345,7 @@ export default function AdminPage() {
                         currency: "IDR",
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
-                    }).format(item.price),
+                    }).format(item.price || 0),
             },
             {
                 header: "HPP",
@@ -345,7 +356,7 @@ export default function AdminPage() {
                         currency: "IDR",
                         minimumFractionDigits: 0,
                         maximumFractionDigits: 0,
-                    }).format(item.capital_price),
+                    }).format(item.capital_price || 0),
             },
             {
                 header: "Action",
@@ -438,6 +449,12 @@ export default function AdminPage() {
                     columns={productColumns}
                     onPageChange={handlePageChange}
                 />
+                <PrintProductModal
+                    isOpen={isModalPrintProductOpen.isOpen}
+                    onClose={handleClose}
+                    product={selectedProduct}
+                    onSave={handleSaveProduct}
+                />
                 <ProductModal
                     isOpen={isModalProductOpen.isOpen}
                     onClose={handleClose}
@@ -445,7 +462,6 @@ export default function AdminPage() {
                     onSave={handleSaveProduct}
                     action={isModalProductOpen.action}
                     callFetchAfterUpdate={() => fetchTableData(selectedTab as string, 1, tableData.limit)}
-
                 />
             </div>
         );
@@ -476,6 +492,7 @@ export default function AdminPage() {
         if (!selectedTab) {
             navigate(`/admin?tab=product`);
         } else {
+            resetTableData()
             fetchTableData(selectedTab)
         }
     }, [selectedTab]);

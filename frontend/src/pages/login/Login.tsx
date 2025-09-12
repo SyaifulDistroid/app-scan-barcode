@@ -48,7 +48,6 @@ export default function LoginPage() {
       Swal.close()
   
     } catch (error) {
-      console.log(error.message)
       Swal.fire({
         title: "Error",
         text: `Username atau Password Salah ${error}`,

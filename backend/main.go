@@ -99,7 +99,9 @@ func main() {
 	// QR Code
 	app.Post("/print", generateQR)
 
-	log.Fatal(app.ListenTLS(":3000", "./cert/cert.pem", "./cert/key.pem"))
+	log.Fatal(app.Listen(":3000"))
+
+	// log.Fatal(app.ListenTLS(":3000", "./cert/cert.pem", "./cert/key.pem"))
 }
 
 // Handler untuk login
@@ -457,7 +459,7 @@ func generateQR(c *fiber.Ctx) error {
 	} else {
 		publicPath = filename
 	}
-	url := fmt.Sprintf("https://%s/%s", c.Hostname(), publicPath)
+	url := fmt.Sprintf("http://%s/%s", c.Hostname(), publicPath)
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: fmt.Sprintf("Generate %v QR Success", qr.Qty),
