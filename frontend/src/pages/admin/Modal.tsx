@@ -9,29 +9,29 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
   const [formData, setFormData] = useState({
     product_code: "",
     product_name: "",
-    colour:"",
-    size:"",
+    colour: "",
+    size: "",
     stock: 0,
     price: 0,
-    capital_price:0
+    capital_price: 0
   })
 
   useEffect(() => {
-    if(editedProduct && action == "EDIT") {
+    if (editedProduct && action == "EDIT") {
       setFormData(editedProduct)
     }
   }, [editedProduct])
 
   const resetFormData = () => {
-      setFormData({
-        product_code: "",
-        product_name: "",
-        colour:"",
-        size:"",
-        stock:0,
-        price: 0,
-        capital_price: 0
-      })  
+    setFormData({
+      product_code: "",
+      product_name: "",
+      colour: "",
+      size: "",
+      stock: 0,
+      price: 0,
+      capital_price: 0
+    })
   }
 
   const handleCancel = () => {
@@ -43,69 +43,69 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     e.preventDefault()
 
     Swal.fire({
-        title: "Loading...",
-        text: "Harap Menunggu",
-        icon: "info",
-        allowOutsideClick: false,
-        showConfirmButton: false,
+      title: "Loading...",
+      text: "Harap Menunggu",
+      icon: "info",
+      allowOutsideClick: false,
+      showConfirmButton: false,
     });
 
     try {
-        let payload = formData
+      let payload = formData
 
-        payload.stock = parseInt(payload.stock)
-        payload.price = parseInt(payload.price)
-        payload.capital_price = parseInt(payload.capital_price)
+      payload.stock = parseInt(payload.stock)
+      payload.price = parseInt(payload.price)
+      payload.capital_price = parseInt(payload.capital_price)
 
-        let url = ""
+      let url = ""
 
-        if(action == "EDIT") {
-          url = `${baseUrlAPI}product/${editedProduct.id_product}`
-          payload.id_product = editedProduct.id_product
-        } else if(action == "ADD") {
-          url = `${baseUrlAPI}products`
-        }
+      if (action == "EDIT") {
+        url = `${baseUrlAPI}product/${editedProduct.id_product}`
+        payload.id_product = editedProduct.id_product
+      } else if (action == "ADD") {
+        url = `${baseUrlAPI}products`
+      }
 
-        const response = await fetch(url, {
-            method: action == "EDIT" ? "PUT" : "POST",
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData),
+      const response = await fetch(url, {
+        method: action == "EDIT" ? "PUT" : "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.status != 200 && response.status !== 201) {
+        Swal.fire({
+          title: "Error",
+          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+          icon: "error",
         });
 
-        if (response.status != 200 && response.status !== 201) {
-            Swal.fire({
-                title: "Error",
-                text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
-                icon: "error",
-            });   
-            
-            return
-        }
+        return
+      }
 
-        Swal.fire({
-          title: "Sukses",
-          text: `Berhasil ${action == "EDIT" ? 'Edit' : "Add"} Data`,
-          icon: "success",
-        });  
-        if(callFetchAfterUpdate) {
-          callFetchAfterUpdate()
-        }
-        onClose()
+      Swal.fire({
+        title: "Sukses",
+        text: `Berhasil ${action == "EDIT" ? 'Edit' : "Tambah"} Data`,
+        icon: "success",
+      });
+      if (callFetchAfterUpdate) {
+        callFetchAfterUpdate()
+      }
+      onClose()
     } catch (error) {
       Swal.fire({
-          title: "Error",
-          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
-          icon: "error",
-      });            
+        title: "Error",
+        text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+        icon: "error",
+      });
     } finally {
       resetFormData()
     }
   };
 
   const handleChangeField = (e) => {
-    const {name, value} = e.target
+    const { name, value } = e.target
 
     setFormData((prevData) => ({
       ...prevData,
@@ -134,7 +134,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
-          
+
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Nama Produk</label>
             <input
@@ -238,11 +238,11 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     admin_fee: 0,
     remark: ""
   })
- 
+
   useEffect(() => {
-    if(editedTransaction) {
-      setFormData({...formData, ...editedTransaction})
-      if(masterDataProduct && masterDataProduct.length > 0) {
+    if (editedTransaction) {
+      setFormData({ ...formData, ...editedTransaction })
+      if (masterDataProduct && masterDataProduct.length > 0) {
         setSelectedMasterProduct(
           masterDataProduct.find((product) => (product.value == editedTransaction.id_product))
         )
@@ -250,18 +250,18 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     }
   }, [editedTransaction])
 
-    const resetFormData = () => {
-      setFormData({
-        id_product: null,
-        product_code: "",
-        product_name: "",
-        colour: "",
-        size: "",
-        qty: 0,
-        discount: 0,
-        admin_fee: 0,
-        remark: ""
-      })  
+  const resetFormData = () => {
+    setFormData({
+      id_product: null,
+      product_code: "",
+      product_name: "",
+      colour: "",
+      size: "",
+      qty: 0,
+      discount: 0,
+      admin_fee: 0,
+      remark: ""
+    })
   }
 
   const handleCancel = () => {
@@ -273,19 +273,19 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     e.preventDefault()
 
     Swal.fire({
-        title: "Loading...",
-        text: "Harap Menunggu",
-        icon: "info",
-        allowOutsideClick: false,
-        showConfirmButton: false,
+      title: "Loading...",
+      text: "Harap Menunggu",
+      icon: "info",
+      allowOutsideClick: false,
+      showConfirmButton: false,
     });
 
-    
-    if(!formData.id_product) {
+
+    if (!formData.id_product) {
       Swal.fire({
-          title: "Perhatikan",
-          text: "Product Tidak Boleh Kosong",
-          icon: "info",
+        title: "Perhatikan",
+        text: "Product Tidak Boleh Kosong",
+        icon: "info",
       });
 
       return
@@ -293,66 +293,66 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
 
 
     try {
-        let payload = formData
+      let payload = formData
 
-        payload.qty = parseInt(payload.qty)
-        payload.discount = parseInt(payload.discount)
-        payload.admin_fee = parseInt(payload.admin_fee)
+      payload.qty = parseInt(payload.qty)
+      payload.discount = parseInt(payload.discount)
+      payload.admin_fee = parseInt(payload.admin_fee)
 
-        let url = ""
+      let url = ""
 
-        if(action == "EDIT") {
-          url = `${baseUrlAPI}transaction/${editedTransaction.id_transaction}`
-          payload.id_transaction = parseInt(editedTransaction.id_transaction)
-        } else {
-          if(action == "SCAN") {
-            payload.id_product = parseInt(editedTransaction.id_product)
-          }
-          url = `${baseUrlAPI}transactions`
+      if (action == "EDIT") {
+        url = `${baseUrlAPI}transaction/${editedTransaction.id_transaction}`
+        payload.id_transaction = parseInt(editedTransaction.id_transaction)
+      } else {
+        if (action == "SCAN") {
+          payload.id_product = parseInt(editedTransaction.id_product)
         }
+        url = `${baseUrlAPI}transactions`
+      }
 
-        const response = await fetch(url, {
-            method: action == "EDIT" ? "PUT" : "POST",
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formData),
+      const response = await fetch(url, {
+        method: action == "EDIT" ? "PUT" : "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.status != 200 && response.status !== 201) {
+        Swal.fire({
+          title: "Error",
+          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+          icon: "error",
         });
 
-        if (response.status != 200 && response.status !== 201) {
-            Swal.fire({
-                title: "Error",
-                text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
-                icon: "error",
-            });       
-            
-            return
-        }
+        return
+      }
 
-        Swal.fire({
-          title: "Sukses",
-          text: `Berhasil ${action == "EDIT" ? 'Edit' : "Add"} Data`,
-          icon: "success",
-        });  
+      Swal.fire({
+        title: "Sukses",
+        text: `Berhasil ${action == "EDIT" ? 'Edit' : "Tambah"} Data`,
+        icon: "success",
+      });
 
-        if(callFetchAfterUpdate) {
-          callFetchAfterUpdate()
-        }
+      if (callFetchAfterUpdate) {
+        callFetchAfterUpdate()
+      }
 
-        onClose()
+      onClose()
     } catch (error) {
-        Swal.fire({
-            title: "Error",
-            text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Add"} Data, Silahkan Coba Kembali`,
-            icon: "error",
-        });            
+      Swal.fire({
+        title: "Error",
+        text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+        icon: "error",
+      });
     } finally {
       resetFormData()
     }
   };
 
-   const handleChangeField = (e) => {
-    const {name, value} = e.target
+  const handleChangeField = (e) => {
+    const { name, value } = e.target
 
     setFormData((prevData) => ({
       ...prevData,
@@ -382,14 +382,14 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             &&
             <div className='flex flex-col gap-2'>
               <label className='font-bold text-gray-700'>Produk</label>
-                <Select isDisabled={action == "EDIT"} required value={selectedMasterProduct} name='scanned_product' onChange={(value) => handleChangeSelectProduct(value)} options={masterDataProduct} styles={{
-                  control: (baseStyles, state) => ({
-                    ...baseStyles,
-                    border: "1px solid gray",
-                    padding: "8px 6px",
-                    borderRadius: "12px"
-                  })
-                }}  />
+              <Select isDisabled={action == "EDIT"} required value={selectedMasterProduct} name='scanned_product' onChange={(value) => handleChangeSelectProduct(value)} options={masterDataProduct} styles={{
+                control: (baseStyles, state) => ({
+                  ...baseStyles,
+                  border: "1px solid gray",
+                  padding: "8px 6px",
+                  borderRadius: "12px"
+                })
+              }} />
             </div>
           }
           {
@@ -457,7 +457,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
-          
+
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Diskon</label>
             <input
@@ -516,10 +516,10 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
     id_product: null,
     qty: 0,
   })
- 
+
   useEffect(() => {
-    if(selectedProduct) {
-      setFormData({...formData, ...selectedProduct})
+    if (selectedProduct) {
+      setFormData({ ...formData, ...selectedProduct })
     }
   }, [selectedProduct])
 
@@ -527,7 +527,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
     setFormData({
       id_product: null,
       qty: 0,
-    })  
+    })
   }
 
   const handleCancel = () => {
@@ -539,68 +539,68 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
     e.preventDefault()
 
     Swal.fire({
-        title: "Loading...",
-        text: "Harap Menunggu",
-        icon: "info",
-        allowOutsideClick: false,
-        showConfirmButton: false,
+      title: "Loading...",
+      text: "Harap Menunggu",
+      icon: "info",
+      allowOutsideClick: false,
+      showConfirmButton: false,
     });
 
-    if(formData.qty <= 0) {
+    if (formData.qty <= 0) {
       Swal.fire({
-          title: "Perhatikan",
-          text: "Qty tidak bisa 0 atau di bawahnya",
-          icon: "info",
+        title: "Perhatikan",
+        text: "Qty tidak bisa 0 atau di bawahnya",
+        icon: "info",
       });
 
       return
     }
 
     try {
-        let payload = formData
+      let payload = formData
 
-        payload.qty = parseInt(payload.qty)
+      payload.qty = parseInt(payload.qty)
 
-        const response = await fetch(`${baseUrlAPI}print/`, {
-            method: "POST",
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload),
-        });
+      const response = await fetch(`${baseUrlAPI}print/`, {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+      });
 
-        if (response.status != 200 && response.status !== 201) {
-            Swal.fire({
-                title: "Error",
-                text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
-                icon: "error",
-            });          
-            return       
-        }
-        const result = await response.json();
-
+      if (response.status != 200 && response.status !== 201) {
         Swal.fire({
-            title: "Sukses",
-            text: `Berhasil Generate QR Code Data`,
-            icon: "success",
-        });  
-
-        window.open(result.data, '_blank')
-
-        onClose()
-    } catch (error) {
-      Swal.fire({
           title: "Error",
           text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
           icon: "error",
-      });       
+        });
+        return
+      }
+      const result = await response.json();
+
+      Swal.fire({
+        title: "Sukses",
+        text: `Berhasil Generate QR Code Data`,
+        icon: "success",
+      });
+
+      window.open(result.data, '_blank')
+
+      onClose()
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+        icon: "error",
+      });
     } finally {
       resetFormData()
     }
   };
 
-   const handleChangeField = (e) => {
-    const {name, value} = e.target
+  const handleChangeField = (e) => {
+    const { name, value } = e.target
 
     setFormData((prevData) => ({
       ...prevData,
@@ -627,7 +627,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
-          
+
           <div className='flex justify-end gap-3 mt-4'>
             <button
               type='button'

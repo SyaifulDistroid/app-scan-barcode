@@ -10,7 +10,7 @@ export default function AdminPage() {
 
     const [searchParams] = useSearchParams();
     const selectedTab = searchParams.get("tab");
-    
+
     const [tableData, setTableData] = useState({
         items: [],
         limit: 10,
@@ -22,13 +22,13 @@ export default function AdminPage() {
         items: [],
     })
 
-    const [isModalTrxOpen, setIsModalTrxOpen] = useState({isOpen: false, action: ""});
+    const [isModalTrxOpen, setIsModalTrxOpen] = useState({ isOpen: false, action: "" });
     const [selectedTrx, setSelectedTrx] = useState(null);
 
-    const [isModalProductOpen, setIsModalProductOpen] = useState({isOpen: false, action: ""});
+    const [isModalProductOpen, setIsModalProductOpen] = useState({ isOpen: false, action: "" });
     const [selectedProduct, setSelectedProduct] = useState(null);
 
-    const [isModalPrintProductOpen, setIsModalPrintProductOpen] = useState({isOpen: false});
+    const [isModalPrintProductOpen, setIsModalPrintProductOpen] = useState({ isOpen: false });
 
     const resetTableData = () => {
         setTableData({
@@ -39,7 +39,7 @@ export default function AdminPage() {
         })
     }
 
-    const fetchTableData = async (selectedTab:string, page=1, limit=10, option=null) => {
+    const fetchTableData = async (selectedTab: string, page = 1, limit = 10, option = null) => {
 
         const url = `${baseUrlAPI}${selectedTab == "product" ? "products" : "transactions"}?page=${page}&limit=${limit}`
 
@@ -53,19 +53,19 @@ export default function AdminPage() {
                     title: "Error",
                     text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
                     icon: "error",
-                });      
-                
+                });
+
                 return
             }
 
             const result = await response.json();
 
             let data = result.data
-            if(data.items == null) {
+            if (data.items == null) {
                 data.items = []
             }
 
-            if(!option?.forMaster) {
+            if (!option?.forMaster) {
                 setTableData(data)
             } else {
                 const options = data.items.map((product, index) => ({
@@ -83,7 +83,7 @@ export default function AdminPage() {
                 title: "Error",
                 text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refreshs",
                 icon: "error",
-            });            
+            });
         }
     }
 
@@ -97,13 +97,13 @@ export default function AdminPage() {
     const Transaction = () => {
 
         const handleEditProductClick = (trx) => {
-            fetchTableData("product", 1, 9999, {forMaster: true})
+            fetchTableData("product", 1, 9999, { forMaster: true })
             setSelectedTrx(trx);
-            setIsModalTrxOpen({action: "EDIT", isOpen: true});
+            setIsModalTrxOpen({ action: "EDIT", isOpen: true });
         };
 
         const handleClose = () => {
-            setIsModalTrxOpen({isOpen: false, action: ""});
+            setIsModalTrxOpen({ isOpen: false, action: "" });
             setSelectedTrx(null)
         }
         const handleSaveTrx = () => {
@@ -111,10 +111,10 @@ export default function AdminPage() {
         };
 
         const handleClickAddTransaction = () => {
-            fetchTableData("product", 1, 9999, {forMaster: true})
-            setIsModalTrxOpen({action: "ADD", isOpen: true})
+            fetchTableData("product", 1, 9999, { forMaster: true })
+            setIsModalTrxOpen({ action: "ADD", isOpen: true })
         }
-        
+
         const transactionColumns = [
             {
                 header: "Kode",
@@ -248,17 +248,17 @@ export default function AdminPage() {
 
         const handleEditProductClick = (product) => {
             setSelectedProduct(product);
-            setIsModalProductOpen({isOpen: true, action: "EDIT"});
+            setIsModalProductOpen({ isOpen: true, action: "EDIT" });
         };
 
         const handleClose = () => {
             setSelectedProduct(null)
 
-            if(isModalPrintProductOpen.isOpen) {
-                setIsModalPrintProductOpen({isOpen: false}); 
-            } else if(isModalProductOpen.isOpen) {
-                setIsModalProductOpen({isOpen: false, action: ""});
-            }   
+            if (isModalPrintProductOpen.isOpen) {
+                setIsModalPrintProductOpen({ isOpen: false });
+            } else if (isModalProductOpen.isOpen) {
+                setIsModalProductOpen({ isOpen: false, action: "" });
+            }
         }
 
         const handleSaveProduct = () => {
@@ -267,7 +267,7 @@ export default function AdminPage() {
 
         const handlePrintProduct = (product) => {
             setSelectedProduct(product);
-            setIsModalPrintProductOpen({isOpen: true});
+            setIsModalPrintProductOpen({ isOpen: true });
         }
 
         const handleDeleteProduct = async (selectedProduct) => {
@@ -279,28 +279,28 @@ export default function AdminPage() {
                     showCancelButton: true,
                     confirmButtonColor: "#3085d6",
                     cancelButtonColor: "#d33",
-                    confirmButtonText: "Hapuss"
-                    }).then(async (result) => {
+                    confirmButtonText: "Hapus"
+                }).then(async (result) => {
                     if (result.isConfirmed) {
                         const response = await fetch(`${baseUrlAPI}product/${selectedProduct.id_product}`, {
                             method: "DELETE",
                         });
-                
+
                         if (response.status != 200 && response.status !== 201) {
                             Swal.fire({
                                 title: "Error",
                                 text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
                                 icon: "error",
-                            });            
+                            });
 
                             return
                         }
-                
+
                         Swal.fire({
                             title: "Sukses",
                             text: `Berhasil Menghapus Data`,
                             icon: "success",
-                        });  
+                        });
                         fetchTableData(selectedTab as string, 1, tableData.limit)
                     }
                 });
@@ -310,7 +310,7 @@ export default function AdminPage() {
                     title: "Error",
                     text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
                     icon: "error",
-                });            
+                });
             }
         }
 
@@ -439,7 +439,7 @@ export default function AdminPage() {
                         Produk
                     </span>
 
-                    <button onClick={() => setIsModalProductOpen({action: "ADD", isOpen: true})} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-orange-400 px-7 py-3 rounded-full shadow-md">
+                    <button onClick={() => setIsModalProductOpen({ action: "ADD", isOpen: true })} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-orange-400 px-7 py-3 rounded-full shadow-md">
                         + Tambah Produk
                     </button>
                 </div>
@@ -520,15 +520,13 @@ export default function AdminPage() {
                         {tabMenuList.map((tab) => (
                             <button
                                 onClick={() => handleChangeTab(tab.value)}
-                                className={`w-full ease-in-out duration-200 font-bold ${
-                                    tab.value == selectedTab
+                                className={`w-full ease-in-out duration-200 font-bold ${tab.value == selectedTab
                                         ? "text-white"
                                         : "text-gray-400"
-                                } text-center ${
-                                    tab.value == selectedTab
+                                    } text-center ${tab.value == selectedTab
                                         ? "bg-orange-400"
                                         : "bg-white"
-                                } px-2 py-3 rounded-xl`}
+                                    } px-2 py-3 rounded-xl`}
                             >
                                 {tab.label}
                             </button>

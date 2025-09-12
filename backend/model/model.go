@@ -38,3 +38,8 @@ type Response struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
 }
+
+type Size struct {
+	ID   int    `json:"id_size"`
+	Size string `json:"size"`
+}
