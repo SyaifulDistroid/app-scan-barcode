@@ -58,7 +58,7 @@ export default function LoginPage({handlePullRole}) {
     } catch (error) {
       Swal.fire({
         title: "Error",
-        text: `Username atau Password Salah ${error}`,
+        text: `Username atau Password Salah`,
         icon: "error",
       });
     }

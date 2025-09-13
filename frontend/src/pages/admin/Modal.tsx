@@ -127,7 +127,11 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     
     try {
         const response = await fetch(url, {
-            method: "GET",
+            method: 'GET',
+                              headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
         });
 
         if (response.status != 200 && response.status !== 201) {
@@ -160,7 +164,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     } catch (error) {
         Swal.fire({
             title: "Error",
-            text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refreshs",
+            text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
             icon: "error",
         });
     }

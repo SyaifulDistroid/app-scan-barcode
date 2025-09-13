@@ -113,9 +113,9 @@ func main() {
 	// QR Code
 	app.Post("/print", generateQR)
 
-	log.Fatal(app.Listen(":3000"))
+	// log.Fatal(app.Listen(":3000"))
 
-	// log.Fatal(app.ListenTLS(":3000", "./cert/cert.pem", "./cert/key.pem"))
+	log.Fatal(app.ListenTLS(":3000", "./cert/cert.pem", "./cert/key.pem"))
 }
 
 // Handler untuk login

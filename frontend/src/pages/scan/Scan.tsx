@@ -88,7 +88,11 @@ export default function ScanPage() {
     const getProductDetailByID =  async (productId) => {
         try {
             const response = await fetch(`${baseUrlAPI}product/${productId}`, {
-                method: "GET",
+                method: 'GET',
+                              headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
             });
 
             if (response.status != 200 && response.status !== 201) {
