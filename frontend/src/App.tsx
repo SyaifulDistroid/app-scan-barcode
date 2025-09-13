@@ -26,7 +26,13 @@ function App() {
         const username = sessionStorage.getItem("username");
         const password = sessionStorage.getItem("password");
 
-        if(!username && !password) return
+        if(!username && !password) {
+            if(window.location.pathname !== "/") {
+                if(window.location.pathname == "/admin") {
+                    window.location.href = "/";
+                }
+            }
+        }
 
         try {
             const response = await fetch(`${baseUrlAPI}login`, {
