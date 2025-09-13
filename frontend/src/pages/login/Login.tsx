@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { baseUrlAPI } from '../../utils/constant';
 
-export default function LoginPage() {
+export default function LoginPage({handlePullRole}) {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -39,9 +39,17 @@ export default function LoginPage() {
 
       const result = await response.json();
 
+      sessionStorage.setItem("username", username)
+      sessionStorage.setItem("password", password)
+
       if(result.data.role == "admin") {
+        handlePullRole("admin")
         navigate('/admin');
-      } else if (result.data.role =="staff"){
+      } else if (result.data.role =="owner"){
+        handlePullRole("owner")
+        navigate('/admin');
+      } else if (result.data.role =="staff") {
+        handlePullRole("staff")
         navigate('/scan');
       }
 

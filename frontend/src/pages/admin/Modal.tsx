@@ -5,6 +5,8 @@ import Select from 'react-select';
 
 
 export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, action, callFetchAfterUpdate }) {
+  const [selectedMasterSize, setSelectedMasterSize] = useState({})
+  const [masterDataSize, setMasterDataSize] = useState([])
 
   const [formData, setFormData] = useState({
     product_code: "",
@@ -74,10 +76,12 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
         body: JSON.stringify(formData),
       });
 
+      const result = await response.json()
+
       if (response.status != 200 && response.status !== 201) {
         Swal.fire({
           title: "Error",
-          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+          text: result.message || `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
           icon: "error",
         });
 
@@ -93,13 +97,13 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
         callFetchAfterUpdate()
       }
       onClose()
+      resetFormData()
     } catch (error) {
       Swal.fire({
         title: "Error",
         text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
         icon: "error",
       });
-    } finally {
       resetFormData()
     }
   };
@@ -117,6 +121,63 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
   if (!isOpen) {
     return null;
   }
+
+  const fetchMasterDataSize = async () => {
+    const url = `${baseUrlAPI}sizes`
+    
+    try {
+        const response = await fetch(url, {
+            method: "GET",
+        });
+
+        if (response.status != 200 && response.status !== 201) {
+            Swal.fire({
+                title: "Error",
+                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                icon: "error",
+            });
+
+            return
+        }
+
+        const result = await response.json();
+
+        let data = result.data
+        if (data.items == null) {
+            data.items = []
+        }
+
+        const options = data.map((size) => ({
+            label: size.size,
+            value: size.id_size,
+        }))
+
+        setMasterDataSize(options)
+
+        if(action == "EDIT") {
+          setSelectedMasterSize(options.find((size) => (size.label == editedProduct.size)))
+        }
+    } catch (error) {
+        Swal.fire({
+            title: "Error",
+            text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refreshs",
+            icon: "error",
+        });
+    }
+  }
+
+  useEffect(() => {
+    fetchMasterDataSize()
+  }, [])
+
+  const handleChangeSelectSize = (selectedSize) => {
+    setSelectedMasterSize(selectedSize)
+    setFormData((prevData) => ({
+      ...prevData,
+      size: selectedSize.label
+    }))
+  }
+
 
   return (
     <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
@@ -159,7 +220,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             />
           </div>
 
-          <div className='flex flex-col gap-2'>
+          {/* <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Ukuran</label>
             <input
               type='text'
@@ -169,6 +230,18 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               required
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
+          </div> */}
+
+          <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>Ukuran</label>
+            <Select required value={selectedMasterSize} name='size' onChange={(value) => handleChangeSelectSize(value)} options={masterDataSize} styles={{
+              control: (baseStyles, state) => ({
+                ...baseStyles,
+                border: "1px solid gray",
+                padding: "8px 6px",
+                borderRadius: "12px"
+              })
+            }} />
           </div>
 
           <div className='flex flex-col gap-2'>
@@ -319,10 +392,12 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
         body: JSON.stringify(formData),
       });
 
+      const result = await response.json()
+
       if (response.status != 200 && response.status !== 201) {
         Swal.fire({
           title: "Error",
-          text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
+          text: result?.message || `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
           icon: "error",
         });
 
@@ -340,13 +415,14 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       }
 
       onClose()
+      resetFormData()
     } catch (error) {
       Swal.fire({
         title: "Error",
         text: `Terdapat Kesalahan Saat ${action == "EDIT" ? 'Edit' : "Tambah"} Data, Silahkan Coba Kembali`,
         icon: "error",
       });
-    } finally {
+
       resetFormData()
     }
   };
@@ -588,15 +664,15 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
       window.open(result.data, '_blank')
 
       onClose()
+      resetFormData()
     } catch (error) {
       Swal.fire({
         title: "Error",
         text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
         icon: "error",
       });
-    } finally {
       resetFormData()
-    }
+    } 
   };
 
   const handleChangeField = (e) => {

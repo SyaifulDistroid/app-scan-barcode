@@ -51,7 +51,7 @@ export default function Table({ data, columns, onPageChange }) {
       </div>
 
       {/* Pagination Section */}
-      {totalPages > 1 && (
+      {(
         <div className='flex justify-end items-center gap-2'>
           <button
             onClick={() => onPageChange(page - 1)}

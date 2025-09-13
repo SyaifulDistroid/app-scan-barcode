@@ -145,7 +145,7 @@ export default function ScanPage() {
                 <div className=" bg-gray-200 rounded-xl flex items-center justify-center">
                     {true ? (
                         <Scanner onScan={(result) => handleScan(result)} />
-                        // <button onClick={() => handleScan([{rawValue: "1-2-3-4-5-6-2"}])}>INI BISA</button>
+                        // <button onClick={() => handleScan([{rawValue: "1-2-3-4-5-6-112"}])}>INI BISA</button>
                     ) : (
                         <span className="text-sm font-bold text-gray-500">
                             Kamera
@@ -188,7 +188,12 @@ export default function ScanPage() {
                 action={isModalTrxOpen.action}
                 callFetchAfterUpdate={null}
             />
-
+            {/* <button
+                // onClick={handleLogout}
+                className="w-full hover:bg-red-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-red-400 px-7 py-3 rounded-full shadow-md"
+            >
+                Log Out
+            </button> */}
         </div>
     );
 }

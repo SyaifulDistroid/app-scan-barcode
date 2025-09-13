@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../component/table";
 import { TransactionModal, ProductModal, PrintProductModal } from "./Modal";
 import Swal from "sweetalert2";
 import { baseUrlAPI } from "../../utils/constant";
+import { RoleContext } from "../../App";
 
 export default function AdminPage() {
+    const role = useContext(RoleContext);
     const navigate = useNavigate();
 
     const [searchParams] = useSearchParams();
@@ -115,7 +117,52 @@ export default function AdminPage() {
             setIsModalTrxOpen({ action: "ADD", isOpen: true })
         }
 
-        const transactionColumns = [
+        const handleDeleteTransaction = async (selectedTrx) => {
+            try {
+                Swal.fire({
+                    title: "Apakah Anda Yakin?",
+                    text: "Anda akan menghapus data Transaksi",
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Hapus",
+                    reverseButtons: true
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        const response = await fetch(`${baseUrlAPI}transaction/${selectedTrx.id_transaction}`, {
+                            method: "DELETE",
+                        });
+
+                        if (response.status != 200 && response.status !== 201) {
+                            Swal.fire({
+                                title: "Error",
+                                text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
+                                icon: "error",
+                            });
+
+                            return
+                        }
+
+                        Swal.fire({
+                            title: "Sukses",
+                            text: `Berhasil Menghapus Data`,
+                            icon: "success",
+                        });
+                        fetchTableData(selectedTab as string, 1, tableData.limit)
+                    }
+                });
+
+            } catch (error) {
+                Swal.fire({
+                    title: "Error",
+                    text: `Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali`,
+                    icon: "error",
+                });
+            }
+        }
+
+        const masterColumnsTransaction = [
             {
                 header: "Kode",
                 key: "product_code",
@@ -188,9 +235,10 @@ export default function AdminPage() {
                                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
                         </button>
-                        {/* <button
+                        <button
                             className="p-2 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition"
                             title="Delete"
+                            onClick={() => handleDeleteTransaction(item)}
                         >
                             <svg
                                 className="w-5 h-5"
@@ -207,11 +255,18 @@ export default function AdminPage() {
                                 ></path>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
-                        </button> */}
+                        </button>
                     </div>
                 ),
             },
-        ];
+        ]
+
+        const [transactionColumns, setTransactionColumns] = useState([])
+
+        useEffect(() => {
+            setTransactionColumns(masterColumnsTransaction.slice(0, role == "owner" ? masterColumnsTransaction.length : (masterColumnsTransaction.length - 1)))
+        }, [])
+
         return (
             <div className="w-3/4 flex flex-col gap-10 mx-auto ease-in duration-150">
                 <div className="flex flex-col md:flex-row items-center justify-between">
@@ -277,9 +332,10 @@ export default function AdminPage() {
                     text: "Anda akan menghapus data produk",
                     icon: "warning",
                     showCancelButton: true,
-                    confirmButtonColor: "#3085d6",
-                    cancelButtonColor: "#d33",
-                    confirmButtonText: "Hapus"
+                    confirmButtonColor: "#d33",
+                    cancelButtonColor: "#3085d6",
+                    confirmButtonText: "Hapus",
+                    reverseButtons: true
                 }).then(async (result) => {
                     if (result.isConfirmed) {
                         const response = await fetch(`${baseUrlAPI}product/${selectedProduct.id_product}`, {
@@ -314,8 +370,7 @@ export default function AdminPage() {
             }
         }
 
-
-        const productColumns = [
+        const masterProductColumns = [
             {
                 header: "Kode",
                 key: "product_code",
@@ -430,7 +485,21 @@ export default function AdminPage() {
                     </div>
                 ),
             },
-        ];
+        ]
+        const [productColumns, setProductColumns] = useState([])
+
+        // useEffect(() => {
+        //     if(role !== "owner") {
+        //         if(productColumns.length > 7) {
+        //             setProductColumns(productColumns.slice(0, productColumns.length - 1))
+        //         }
+        //     }
+        // }, [role])
+
+        useEffect(() => {
+            setProductColumns(masterProductColumns.slice(0, masterProductColumns.length))
+        }, [])
+
 
         return (
             <div className="w-3/4 flex flex-col gap-10 mx-auto ease-in duration-150">
@@ -485,6 +554,8 @@ export default function AdminPage() {
     };
 
     const handleLogout = () => {
+        sessionStorage.removeItem("username")
+        sessionStorage.removeItem("password")
         navigate(`/`);
     };
 
@@ -497,6 +568,10 @@ export default function AdminPage() {
         }
     }, [selectedTab]);
 
+    // if(role !== "admin" && role != "owner"){
+    //     navigate("/")
+    //     return null
+    // }
 
     return (
         <div className="w-full h-full flex flex-col pt-5 justify-between">

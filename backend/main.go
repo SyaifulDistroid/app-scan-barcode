@@ -348,7 +348,7 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions LIMIT ? OFFSET ?", limit, offset)
+	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions WHERE is_active = 1 LIMIT ? OFFSET ?", limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
