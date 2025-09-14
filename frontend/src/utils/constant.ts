@@ -1,1 +1,7 @@
-export const baseUrlAPI = "https://127.0.0.1:3000/"
+export const baseUrlAPI = import.meta.env.VITE_BASE_URL_API
+
+export const headersAllowNgrok = () => {
+    return {
+        'ngrok-skip-browser-warning': 'true'
+    }
+}

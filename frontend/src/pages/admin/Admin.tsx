@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import Table from "../../component/table";
 import { TransactionModal, ProductModal, PrintProductModal } from "./Modal";
 import Swal from "sweetalert2";
-import { baseUrlAPI } from "../../utils/constant";
+import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { RoleContext } from "../../App";
 
 export default function AdminPage() {
@@ -48,6 +48,10 @@ export default function AdminPage() {
         try {
             const response = await fetch(url, {
                 method: "GET",
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...headersAllowNgrok()
+                },
             });
 
             if (response.status != 200 && response.status !== 201) {
@@ -132,6 +136,7 @@ export default function AdminPage() {
                     if (result.isConfirmed) {
                         const response = await fetch(`${baseUrlAPI}transaction/${selectedTrx.id_transaction}`, {
                             method: "DELETE",
+                            headers: headersAllowNgrok()
                         });
 
                         if (response.status != 200 && response.status !== 201) {
@@ -340,6 +345,7 @@ export default function AdminPage() {
                     if (result.isConfirmed) {
                         const response = await fetch(`${baseUrlAPI}product/${selectedProduct.id_product}`, {
                             method: "DELETE",
+                            headers: headersAllowNgrok()
                         });
 
                         if (response.status != 200 && response.status !== 201) {

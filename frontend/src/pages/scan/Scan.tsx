@@ -2,7 +2,7 @@ import { Scanner } from "@yudiel/react-qr-scanner";
 import React, { useState, useEffect, useRef } from "react";
 import { TransactionModal } from "../admin/Modal";
 import Swal from "sweetalert2";
-import { baseUrlAPI } from "../../utils/constant";
+import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 
 // Karena komponen '@yudiel/react-qr-scanner' tidak dapat dimuat,
 // kita akan membuat komponen simulasi scanner sederhana untuk mendemonstrasikan logika.
@@ -75,23 +75,24 @@ export default function ScanPage() {
         product_name: "",
         colour:"",
         size:"",
-        stock: 0,
-        price: 0,
-        capital_price:0
+        stock: "",
+        price: "",
+        capital_price:""
     });
     const [message, setMessage] = useState(
         "Ready To Scan"
     );
-    const [isSimulating, setIsSimulating] = useState(false);
+    const [isSimulating, setIsSimulating] = useState(true);
     const [scannedCode, setScannedCode] = useState("");
 
     const getProductDetailByID =  async (productId) => {
         try {
+            setIsSimulating(false)
             const response = await fetch(`${baseUrlAPI}product/${productId}`, {
                 method: 'GET',
-                              headers: {
+                headers: {
                     'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true',
+                    ...headersAllowNgrok()
                 },
             });
 
@@ -120,16 +121,24 @@ export default function ScanPage() {
                 text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
                 icon: "error",
             });            
+        } finally {
+            setIsSimulating(true)
         }
     }
 
     const handleScan = (resultValue) => {
         if (resultValue && resultValue.length > 0) {
             const scannedCode = resultValue[0].rawValue;
-            // Cari produk yang cocok dengan kode yang dipindai
             if (scannedCode) {
-                const splittedCode = scannedCode.split("-")
-                getProductDetailByID(splittedCode[splittedCode.length - 1])
+                let idFromCode = ""
+                if(scannedCode.includes("-")){
+                    const splittedCode = scannedCode.split("-")
+                    idFromCode = splittedCode[splittedCode.length - 1]
+                } else {
+                    idFromCode = scannedCode
+                }
+
+                getProductDetailByID(idFromCode)
             } else {
                 setMessage(
                     `Produk dengan kode "${scannedCode}" tidak ditemukan.`
@@ -147,7 +156,7 @@ export default function ScanPage() {
         return (
             <div className="w-full h-full flex flex-col justify-center items-center gap-4">
                 <div className=" bg-gray-200 rounded-xl flex items-center justify-center">
-                    {true ? (
+                    {isSimulating ? (
                         <Scanner onScan={(result) => handleScan(result)} />
                         // <button onClick={() => handleScan([{rawValue: "1-2-3-4-5-6-112"}])}>INI BISA</button>
                     ) : (

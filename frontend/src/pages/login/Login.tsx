@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import { baseUrlAPI } from '../../utils/constant';
+import { baseUrlAPI, headersAllowNgrok } from '../../utils/constant';
 
 export default function LoginPage({handlePullRole}) {
   const navigate = useNavigate();
@@ -23,9 +23,11 @@ export default function LoginPage({handlePullRole}) {
         method: "POST",
         body: JSON.stringify({username: username, password: password}),
           headers: {
-    "Content-Type": "application/json",
-  },
+          "Content-Type": "application/json",
+          ...headersAllowNgrok()
+        },
       });
+      
 
       if (response.status != 200 && response.status !== 201) {
         Swal.fire({

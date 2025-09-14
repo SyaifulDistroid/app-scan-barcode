@@ -1,6 +1,6 @@
 import React, { useState, useEffect, act } from 'react';
 import Swal from 'sweetalert2';
-import { baseUrlAPI } from '../../utils/constant';
+import { baseUrlAPI, headersAllowNgrok } from '../../utils/constant';
 import Select from 'react-select';
 
 
@@ -71,7 +71,8 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
       const response = await fetch(url, {
         method: action == "EDIT" ? "PUT" : "POST",
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
         },
         body: JSON.stringify(formData),
       });
@@ -128,10 +129,10 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     try {
         const response = await fetch(url, {
             method: 'GET',
-                              headers: {
-                    'Content-Type': 'application/json',
-                    'ngrok-skip-browser-warning': 'true',
-                },
+            headers: {
+                'Content-Type': 'application/json',
+                ...headersAllowNgrok()
+            },
         });
 
         if (response.status != 200 && response.status !== 201) {
@@ -253,7 +254,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='stock'
-              defaultValue={formData.stock || editedProduct?.stock || 0}
+              defaultValue={formData.stock || editedProduct?.stock || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -264,7 +265,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='price'
-              defaultValue={formData.price || editedProduct?.price || 0}
+              defaultValue={formData.price || editedProduct?.price || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -274,7 +275,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='capital_price'
-              defaultValue={formData.capital_price || editedProduct?.capital_price || 0}
+              defaultValue={formData.capital_price || editedProduct?.capital_price || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -369,6 +370,18 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     }
 
 
+    
+    if (formData.qty <= 0) {
+      Swal.fire({
+        title: "Perhatikan",
+        text: "Qty tidak bisa 0 atau di bawahnya",
+        icon: "info",
+      });
+
+      return
+    }
+
+
     try {
       let payload = formData
 
@@ -391,7 +404,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       const response = await fetch(url, {
         method: action == "EDIT" ? "PUT" : "POST",
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
         },
         body: JSON.stringify(formData),
       });
@@ -531,8 +545,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='qty'
+        
               required
-              defaultValue={formData.qty || editedTransaction?.qty || 0}
+              defaultValue={formData.qty || editedTransaction?.qty || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -543,7 +558,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='discount'
-              defaultValue={formData.discount || editedTransaction?.discount || 0}
+              defaultValue={formData.discount || editedTransaction?.discount || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -554,7 +569,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='admin_fee'
-              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || 0}
+              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || ""}
               onChange={handleChangeField}
               required
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
@@ -644,7 +659,8 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
       const response = await fetch(`${baseUrlAPI}print/`, {
         method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
         },
         body: JSON.stringify(payload),
       });
@@ -702,7 +718,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
             <input
               type='number'
               name='qty'
-              defaultValue={formData.qty || selectedProduct?.qty || 0}
+              defaultValue={formData.qty || selectedProduct?.qty || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />

@@ -11,7 +11,7 @@ import "./App.css";
 import AdminPage from "./pages/admin/Admin";
 import LoginPage from "./pages/login/Login";
 import ScanPage from "./pages/scan/Scan";
-import { baseUrlAPI } from "./utils/constant";
+import { baseUrlAPI, headersAllowNgrok } from "./utils/constant";
 
 export const RoleContext = createContext(null);
 
@@ -43,6 +43,7 @@ function App() {
                 }),
                 headers: {
                     "Content-Type": "application/json",
+                    ...headersAllowNgrok()
                 },
             });
 
