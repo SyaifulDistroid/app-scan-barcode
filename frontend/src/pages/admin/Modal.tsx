@@ -125,49 +125,49 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
 
   const fetchMasterDataSize = async () => {
     const url = `${baseUrlAPI}sizes`
-    
+
     try {
-        const response = await fetch(url, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                ...headersAllowNgrok()
-            },
-        });
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
+        },
+      });
 
-        if (response.status != 200 && response.status !== 201) {
-            Swal.fire({
-                title: "Error",
-                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
-                icon: "error",
-            });
-
-            return
-        }
-
-        const result = await response.json();
-
-        let data = result.data
-        if (data.items == null) {
-            data.items = []
-        }
-
-        const options = data.map((size) => ({
-            label: size.size,
-            value: size.id_size,
-        }))
-
-        setMasterDataSize(options)
-
-        if(action == "EDIT") {
-          setSelectedMasterSize(options.find((size) => (size.label == editedProduct.size)))
-        }
-    } catch (error) {
+      if (response.status != 200 && response.status !== 201) {
         Swal.fire({
-            title: "Error",
-            text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
-            icon: "error",
+          title: "Error",
+          text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+          icon: "error",
         });
+
+        return
+      }
+
+      const result = await response.json();
+
+      let data = result.data
+      if (data.items == null) {
+        data.items = []
+      }
+
+      const options = data.map((size) => ({
+        label: size.size,
+        value: size.id_size,
+      }))
+
+      setMasterDataSize(options)
+
+      if (action == "EDIT") {
+        setSelectedMasterSize(options.find((size) => (size.label == editedProduct.size)))
+      }
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+        icon: "error",
+      });
     }
   }
 
@@ -254,7 +254,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='stock'
-              defaultValue={formData.stock || editedProduct?.stock || ""}
+              defaultValue={formData.stock || editedProduct?.stock || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -265,7 +265,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='price'
-              defaultValue={formData.price || editedProduct?.price || ""}
+              defaultValue={formData.price || editedProduct?.price || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -275,7 +275,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             <input
               type='number'
               name='capital_price'
-              defaultValue={formData.capital_price || editedProduct?.capital_price || ""}
+              defaultValue={formData.capital_price || editedProduct?.capital_price || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -370,7 +370,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     }
 
 
-    
+
     if (formData.qty <= 0) {
       Swal.fire({
         title: "Perhatikan",
@@ -545,9 +545,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='qty'
-        
+
               required
-              defaultValue={formData.qty || editedTransaction?.qty || ""}
+              defaultValue={formData.qty || editedTransaction?.qty || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -558,7 +558,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='discount'
-              defaultValue={formData.discount || editedTransaction?.discount || ""}
+              defaultValue={formData.discount || editedTransaction?.discount || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
@@ -569,7 +569,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <input
               type='number'
               name='admin_fee'
-              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || ""}
+              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || "0"}
               onChange={handleChangeField}
               required
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
@@ -580,7 +580,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             <label className='font-bold text-gray-700'>Keterangan</label>
             <textarea
               name='remark'
-              defaultValue={editedTransaction?.remark || ""}
+              defaultValue={editedTransaction?.remark || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             ></textarea>
@@ -692,7 +692,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
         icon: "error",
       });
       resetFormData()
-    } 
+    }
   };
 
   const handleChangeField = (e) => {
@@ -718,7 +718,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
             <input
               type='number'
               name='qty'
-              defaultValue={formData.qty || selectedProduct?.qty || ""}
+              defaultValue={formData.qty || selectedProduct?.qty || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />

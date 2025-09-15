@@ -87,7 +87,7 @@ export default function AdminPage() {
         } catch (error) {
             Swal.fire({
                 title: "Error",
-                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refreshs",
+                text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
                 icon: "error",
             });
         }
@@ -169,7 +169,7 @@ export default function AdminPage() {
 
         const masterColumnsTransaction = [
             {
-                header: "Kode",
+                header: "Kode Produk",
                 key: "product_code",
             },
             {
@@ -213,6 +213,17 @@ export default function AdminPage() {
             {
                 header: "Keterangan",
                 key: "remark",
+            },
+            {
+                header: "Total Harga",
+                key: "total_price",
+                render: (item) =>
+                    new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                    }).format(item.admin_fee || 0),
             },
             {
                 header: "Action",
@@ -378,7 +389,7 @@ export default function AdminPage() {
 
         const masterProductColumns = [
             {
-                header: "Kode",
+                header: "Kode Produk",
                 key: "product_code",
             },
             {
@@ -602,8 +613,8 @@ export default function AdminPage() {
                             <button
                                 onClick={() => handleChangeTab(tab.value)}
                                 className={`w-full ease-in-out duration-200 font-bold ${tab.value == selectedTab
-                                        ? "text-white"
-                                        : "text-gray-400"
+                                    ? "text-white"
+                                    : "text-gray-400"
                                     } text-center ${tab.value == selectedTab
                                         ? "bg-orange-400"
                                         : "bg-white"

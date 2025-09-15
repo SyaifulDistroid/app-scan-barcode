@@ -4,6 +4,7 @@ import (
 	"app-scan-barcode/model"
 	"fmt"
 	"image/png"
+	"math/rand"
 	"os"
 	"time"
 
@@ -26,7 +27,9 @@ func lerpColor(r1, g1, b1, r2, g2, b2 int, t float64) (int, int, int) {
 }
 
 func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
-	content := fmt.Sprintf("ocik-gallery-%s-%s-%v", time.Now().Format("2006-01-02"), data.ProductCode, data.IDProduct)
+	randomStr := RandomStringFromCharset(65, "ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	content := fmt.Sprintf("%s-%v", randomStr, data.IDProduct)
 
 	barcodeDir := "./public/barcode"
 	if _, err := os.Stat(barcodeDir); os.IsNotExist(err) {
@@ -35,10 +38,10 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	outfile := fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct)
 	qrSize := 800
 	logoPath := "./public/ocik-logo.png"
-	logoRatio := 0.20
+	logoRatio := 0.18
 
 	// Load font TTF
-	fontBytes, err := os.ReadFile("Montserrat-Bold.ttf") // Ganti dengan font kamu
+	fontBytes, err := os.ReadFile("BeeLeaveRegular-3zR66.ttf") // Ganti dengan font kamu
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
@@ -46,12 +49,12 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	if err != nil {
 		return c.Status(500).SendString(err.Error())
 	}
-	faceTitle := truetype.NewFace(ft, &truetype.Options{Size: 50})
+	faceTitle := truetype.NewFace(ft, &truetype.Options{Size: 70})
 	faceSub := truetype.NewFace(ft, &truetype.Options{Size: 40})
 	facePrice := truetype.NewFace(ft, &truetype.Options{Size: 50})
 
 	// Ukuran canvas keseluruhan (atas teks + QR + bawah teks)
-	qrOffsetY := 20
+	qrOffsetY := 18
 	canvasHeight := qrSize
 	dc := gg.NewContext(qrSize, canvasHeight)
 
@@ -62,11 +65,11 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	// Teks Atas
 	dc.SetFontFace(faceTitle)
 	dc.SetRGB(139, 0, 0)
-	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 20, 0.5, 0.5)
+	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 15, 0.5, 0.5)
 
 	dc.SetFontFace(faceSub)
 	dc.SetRGB(139, 0, 0)
-	dc.DrawStringAnchored(data.Colour, float64(qrSize)/2, 65, 0.5, 0.5)
+	dc.DrawStringAnchored(data.Colour, float64(qrSize)/2, 60, 0.5, 0.5)
 
 	// Generate QR code
 	qr, err := qrcode.New(content, qrcode.Highest)
@@ -130,7 +133,7 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	// Teks Harga di bawah QR
 	dc.SetFontFace(facePrice)
 	dc.SetRGB(0, 0, 139)
-	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-40, 0.5, 0.5)
+	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-35, 0.5, 0.5)
 
 	// Simpan PNG
 	outFile, err := os.Create(outfile)
@@ -180,11 +183,11 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 	pdf.AddPage()
 
 	// Margin & ukuran QR di PDF
-	marginLeft := 15.0
-	marginTop := 15.0
-	qrSize := 30.0 // ukuran per QR (mm)
-	spaceX := -3.0
-	spaceY := 3.0
+	marginLeft := 10.0
+	marginTop := 10.0
+	qrSize := 25.0 // ukuran per QR (mm)
+	spaceX := 3.0
+	spaceY := 5.0
 
 	maxCols := int((210 - marginLeft) / (qrSize + spaceX))
 	maxRows := int((297 - marginTop) / (qrSize + spaceY))
@@ -198,7 +201,7 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 
 		pdf.ImageOptions(
 			fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct), // hasil dari GenerateQR
-			x-6, y-6,
+			x, y,
 			qrSize, qrSize,
 			false,
 			fpdf.ImageOptions{ImageType: "PNG", ReadDpi: true},
@@ -226,4 +229,15 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 		return "", err
 	}
 	return filename, nil
+}
+
+func RandomStringFromCharset(length int, charset string) string {
+	result := make([]byte, length)
+	// Seed random
+	rand.Seed(time.Now().UnixNano())
+
+	for i := range result {
+		result[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(result)
 }

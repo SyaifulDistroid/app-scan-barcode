@@ -55,7 +55,7 @@ func main() {
         discount REAL,
         admin_fee REAL,		
         is_active INTEGER DEFAULT 1,
-        remark TEXT,
+        remark TEXT,							
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY(id_product) REFERENCES products(id_product)
     )`)
@@ -85,6 +85,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	var columnExists bool
+	err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('transactions') WHERE name='total_price'").Scan(&columnExists)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Fatal(err)
+		}
+	}
+
+	if !columnExists {
+		_, err = db.Exec(`ALTER TABLE transactions ADD COLUMN total_price REAL DEFAULT 0`)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Kolom total_price berhasil ditambahkan ke tabel transactions")
+
+		// Jalankan migrasi untuk mengisi total_price
+		err = migrateTotalPrice(db)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
 	app := fiber.New()
 	app.Use(cors.New())
 
@@ -100,7 +122,7 @@ func main() {
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
-	app.Get("/transactions", listTransactions) //transactions?page=1&limit=20
+	app.Get("/transactions", listTransactions) //transactions?page=1&limit=20&date=2023-10-10
 	app.Put("/transaction/:id", editTransaction)
 	app.Get("/transaction/:id", getTransaction)
 	app.Delete("/transaction/:id", deleteTransaction)
@@ -113,9 +135,7 @@ func main() {
 	// QR Code
 	app.Post("/print", generateQR)
 
-	// log.Fatal(app.Listen(":3000"))
-
-	log.Fatal(app.ListenTLS(":3000", "./cert/cert.pem", "./cert/key.pem"))
+	log.Fatal(app.Listen(":3000"))
 }
 
 // Handler untuk login
@@ -284,8 +304,18 @@ func addTransaction(c *fiber.Ctx) error {
 	}
 
 	var stok int
+	var price float64
 
 	err := db.QueryRow("SELECT stock FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&stok)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	err = db.QueryRow("SELECT price FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&price)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -302,12 +332,15 @@ func addTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	// Hitung total harga
+	totalPrice := (price - trx.Discount - trx.AdminFee) * float64(trx.Qty)
+
 	// Insert transaksi
 	_, err = db.Exec(`
-        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee, total_price, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee)
+		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee, totalPrice, trx.CreatedAt)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -317,7 +350,7 @@ func addTransaction(c *fiber.Ctx) error {
 	}
 
 	// Update stock produk
-	_, err = db.Exec("UPDATE products SET stock = stock - ? WHERE id_product = ?", trx.Qty, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", trx.Qty, trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -338,6 +371,8 @@ func listTransactions(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 10)
 	offset := (page - 1) * limit
 
+	date := c.Query("date")
+
 	var total int
 	err := db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&total)
 	if err != nil {
@@ -348,7 +383,7 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions WHERE is_active = 1 LIMIT ? OFFSET ?", limit, offset)
+	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at FROM transactions WHERE is_active = 1 AND DATE(created_at) = ? LIMIT ? OFFSET ?", date, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -362,7 +397,7 @@ func listTransactions(c *fiber.Ctx) error {
 	for rows.Next() {
 		var it model.Transaction
 		if err := rows.Scan(&it.IDTransaction, &it.IDProduct, &it.ProductCode, &it.ProductName,
-			&it.Colour, &it.Size, &it.Qty, &it.Discount, &it.AdminFee, &it.Remark, &it.CreatedAt); err != nil {
+			&it.Colour, &it.Size, &it.Qty, &it.Discount, &it.AdminFee, &it.Remark, &it.TotalPrice, &it.CreatedAt); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -383,7 +418,6 @@ func listTransactions(c *fiber.Ctx) error {
 	})
 }
 
-// Edit transaksi
 func editTransaction(c *fiber.Ctx) error {
 	id := c.Params("id")
 	trx := new(model.Transaction)
@@ -396,6 +430,7 @@ func editTransaction(c *fiber.Ctx) error {
 	}
 
 	var qtyBefore int
+	var price float64
 
 	err := db.QueryRow("SELECT qty FROM transactions WHERE is_active = 1 and id_transaction = ?", trx.IDTransaction).Scan(&qtyBefore)
 	if err != nil {
@@ -417,6 +452,15 @@ func editTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	err = db.QueryRow("SELECT price FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&price)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
 	if stok+qtyBefore < trx.Qty {
 		return c.Status(http.StatusBadRequest).JSON(model.Response{
 			Code:    http.StatusBadRequest,
@@ -425,10 +469,13 @@ func editTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	// Hitung total harga
+	totalPrice := (price - trx.Discount - trx.AdminFee) * float64(trx.Qty)
+
 	_, err = db.Exec(`
-		UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, qty=?, discount=?, admin_fee=?, remark=? WHERE id_transaction = ?`,
+        UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, qty=?, discount=?, admin_fee=?, remark=?, total_price=? WHERE id_transaction = ?`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Qty, trx.Discount, trx.AdminFee, trx.Remark, id)
+		trx.Size, trx.Qty, trx.Discount, trx.AdminFee, trx.Remark, totalPrice, id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -438,7 +485,7 @@ func editTransaction(c *fiber.Ctx) error {
 	}
 
 	// Update stock produk
-	_, err = db.Exec("UPDATE products SET stock = stock + ? WHERE id_product = ?", qtyBefore, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock + ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", qtyBefore, trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -447,7 +494,7 @@ func editTransaction(c *fiber.Ctx) error {
 		})
 	}
 
-	_, err = db.Exec("UPDATE products SET stock = stock - ? WHERE id_product = ?", trx.Qty, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", trx.Qty, trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -463,13 +510,12 @@ func editTransaction(c *fiber.Ctx) error {
 	})
 }
 
-// Get transaksi by id
 func getTransaction(c *fiber.Ctx) error {
 	id := c.Params("id")
 	var trx model.Transaction
-	err := db.QueryRow("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, created_at FROM transactions WHERE id_transaction = ?", id).Scan(
+	err := db.QueryRow("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at FROM transactions WHERE id_transaction = ?", id).Scan(
 		&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName,
-		&trx.Colour, &trx.Size, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.CreatedAt)
+		&trx.Colour, &trx.Size, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.TotalPrice, &trx.CreatedAt)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -553,7 +599,7 @@ func deleteProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	_, err := db.Exec(`
-        UPDATE products SET is_active=0 WHERE id_product = ?`, id)
+        UPDATE products SET is_active=0 , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?`, id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -572,8 +618,39 @@ func deleteProduct(c *fiber.Ctx) error {
 func deleteTransaction(c *fiber.Ctx) error {
 	id := c.Params("id")
 
-	_, err := db.Exec(`
+	var idProduct, qty, stok int
+	err := db.QueryRow("SELECT id_product, qty FROM transactions WHERE is_active = 1 and id_transaction = ?", id).Scan(&idProduct, &qty)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	_, err = db.Exec(`
         UPDATE transactions SET is_active=0 WHERE id_transaction = ?`, id)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	err = db.QueryRow("SELECT stock FROM products WHERE is_active = 1 and id_product = ?", idProduct).Scan(&stok)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	stok = stok + qty
+
+	_, err = db.Exec(`
+        UPDATE products SET stock=? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?`, stok, idProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -617,4 +694,55 @@ func listSizes(c *fiber.Ctx) error {
 		Message: "Sizes retrieved successfully",
 		Data:    sizes,
 	})
+}
+
+// Fungsi untuk melakukan migrasi dan mengisi total_price
+func migrateTotalPrice(db *sql.DB) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	rows, err := tx.Query("SELECT id_transaction, id_product, qty, discount, admin_fee FROM transactions")
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var idTransaction, idProduct, qty int
+		var discount, adminFee float64
+
+		err = rows.Scan(&idTransaction, &idProduct, &qty, &discount, &adminFee)
+		if err != nil {
+			return err
+		}
+
+		var price float64
+		err = tx.QueryRow("SELECT price FROM products WHERE id_product = ?", idProduct).Scan(&price)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				log.Printf("Harga produk tidak ditemukan untuk id_product: %d", idProduct)
+				continue // Lanjutkan ke transaksi berikutnya
+			} else {
+				return err
+			}
+		}
+
+		totalPrice := (price - discount - adminFee) * float64(qty)
+
+		_, err = tx.Exec("UPDATE transactions SET total_price = ? WHERE id_transaction = ?", totalPrice, idTransaction)
+		if err != nil {
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	log.Println("Migrasi total_price berhasil dijalankan")
+	return nil
 }

@@ -25,6 +25,7 @@ type Transaction struct {
 	Discount      float64 `json:"discount"`
 	AdminFee      float64 `json:"admin_fee"`
 	Remark        string  `json:"remark"`
+	TotalPrice    float64 `json:"total_price"`
 	CreatedAt     string  `json:"created_at"`
 }
 
