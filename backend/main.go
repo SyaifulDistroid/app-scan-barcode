@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/jung-kurt/gofpdf"
 	_ "modernc.org/sqlite"
 )
 
@@ -134,6 +136,9 @@ func main() {
 	app.Static("/", "./public")
 	// QR Code
 	app.Post("/print", generateQR)
+
+	// Report
+	app.Get("/report", generateReport)
 
 	log.Fatal(app.Listen(":3000"))
 }
@@ -371,10 +376,22 @@ func listTransactions(c *fiber.Ctx) error {
 	limit := c.QueryInt("limit", 10)
 	offset := (page - 1) * limit
 
-	date := c.Query("date")
+	dateFrom := c.Query("start_date")
+	dateTo := c.Query("end_date")
+
+	if dateFrom == "" || dateTo == "" {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "start_date and end_date are required",
+			Data:    nil,
+		})
+	}
 
 	var total int
-	err := db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&total)
+	err := db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM transactions 
+		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?`, dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -383,7 +400,11 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query("SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at FROM transactions WHERE is_active = 1 AND DATE(created_at) = ? LIMIT ? OFFSET ?", date, limit, offset)
+	rows, err := db.Query(`
+		SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at 
+		FROM transactions 
+		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ? 
+		LIMIT ? OFFSET ?`, dateFrom, dateTo, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -406,6 +427,7 @@ func listTransactions(c *fiber.Ctx) error {
 		}
 		trxs = append(trxs, it)
 	}
+
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Transactions retrieved successfully",
@@ -745,4 +767,111 @@ func migrateTotalPrice(db *sql.DB) error {
 
 	log.Println("Migrasi total_price berhasil dijalankan")
 	return nil
+}
+
+func generateReport(c *fiber.Ctx) error {
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+
+	if startDate == "" || endDate == "" {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "start_date and end_date are required",
+			Data:    nil,
+		})
+	}
+
+	rows, err := db.Query(`
+		SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at 
+		FROM transactions 
+		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?`, startDate, endDate)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	defer rows.Close()
+
+	// Prepare data for PDF
+	var data [][]string
+	data = append(data, []string{"No", "Product Code", "Product Name", "Colour", "Size", "Quantity", "Discount", "Admin Fee", "Remark", "Total Price"})
+	var totalPriceSum float64
+
+	no := 1
+	for rows.Next() {
+		var trx model.Transaction
+		if err := rows.Scan(&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.TotalPrice, &trx.CreatedAt); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+				Data:    nil,
+			})
+		}
+		data = append(data, []string{
+			fmt.Sprintf("%d", no),
+			trx.ProductCode,
+			trx.ProductName,
+			trx.Colour,
+			trx.Size,
+			fmt.Sprintf("%d", trx.Qty),
+			fmt.Sprintf("%.2f", trx.Discount),
+			fmt.Sprintf("%.2f", trx.AdminFee),
+			trx.Remark,
+			fmt.Sprintf("%.2f", trx.TotalPrice),
+		})
+		no++
+		totalPriceSum += trx.TotalPrice
+	}
+
+	// Add total row
+	data = append(data, []string{"", "", "", "", "", "", "", "", "Total", fmt.Sprintf("%.2f", totalPriceSum)})
+
+	// Generate PDF file
+	reportFolder := "./public/report"
+	if _, err := os.Stat(reportFolder); os.IsNotExist(err) {
+		if err := os.MkdirAll(reportFolder, os.ModePerm); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to create report folder",
+				Data:    nil,
+			})
+		}
+	}
+
+	filename := fmt.Sprintf("%s/report_%s_to_%s.pdf", reportFolder, startDate, endDate)
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetFont("Arial", "B", 12)
+	pdf.AddPage()
+
+	// Add table header
+	for _, header := range data[0] {
+		pdf.CellFormat(28, 10, header, "1", 0, "C", false, 0, "")
+	}
+	pdf.Ln(-1)
+
+	// Add table rows
+	pdf.SetFont("Arial", "", 10)
+	for _, row := range data[1:] {
+		for _, col := range row {
+			pdf.CellFormat(28, 10, col, "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
+	err = pdf.OutputFileAndClose(filename)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to create report file",
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Report generated successfully",
+		Data:    fmt.Sprintf("http://%s/report/%s", c.Hostname(), filename[len(reportFolder)+1:]),
+	})
 }
