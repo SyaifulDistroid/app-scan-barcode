@@ -1,0 +1,171 @@
+import React, { useState, useEffect } from "react";
+import Table from "../../component/table";
+import { ProductModal, PrintProductModal } from "../../pages/admin/Modal";
+import Swal from "sweetalert2";
+import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
+
+export default function ProductPage({ selectedTab, tableData, setTableData, fetchTableData }) {
+  
+  const [isModalProductOpen, setIsModalProductOpen] = useState({ isOpen: false, action: "" });
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isModalPrintProductOpen, setIsModalPrintProductOpen] = useState({ isOpen: false });
+
+  const [filterProduct, setFilterProduct] = useState({
+      sizePerPage: 10,
+  });
+
+  const handlePageChange = (newPage) => {
+    if (newPage > 0 && newPage <= Math.ceil(tableData.total / tableData.limit)) {
+      fetchTableData(selectedTab, newPage, filterProduct.sizePerPage);
+    }
+  };
+
+  const handleChangeSizePerPage = (sizePerPage) => {
+    setFilterProduct((prevState) => ({...prevState, sizePerPage: sizePerPage}))
+    fetchTableData(selectedTab, 1, sizePerPage);
+  }
+
+  const handleEditProductClick = (product) => {
+    setSelectedProduct(product);
+    setIsModalProductOpen({ isOpen: true, action: "EDIT" });
+  };
+
+  const handleClose = () => {
+    setSelectedProduct(null);
+    if (isModalPrintProductOpen.isOpen) {
+      setIsModalPrintProductOpen({ isOpen: false });
+    } else if (isModalProductOpen.isOpen) {
+      setIsModalProductOpen({ isOpen: false, action: "" });
+    }
+  };
+
+  const handleSaveProduct = () => {
+    handleClose();
+  };
+
+  const handlePrintProduct = (product) => {
+    setSelectedProduct(product);
+    setIsModalPrintProductOpen({ isOpen: true });
+  };
+
+  const handleDeleteProduct = async (selectedProduct) => {
+    try {
+      Swal.fire({
+        title: "Apakah Anda Yakin?",
+        text: "Anda akan menghapus data produk",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Hapus",
+        reverseButtons: true,
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const response = await fetch(`${baseUrlAPI}product/${selectedProduct.id_product}`, {
+            method: "DELETE",
+            headers: headersAllowNgrok(),
+          });
+
+          if (response.status !== 200 && response.status !== 201) {
+            Swal.fire({
+              title: "Error",
+              text: "Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali",
+              icon: "error",
+            });
+            return;
+          }
+
+          Swal.fire({
+            title: "Sukses",
+            text: "Berhasil Menghapus Data",
+            icon: "success",
+          });
+          fetchTableData(selectedTab, 1, filterProduct.sizePerPage);
+        }
+      });
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "Terdapat Kesalahan Saat Menghapus Data, Silahkan Coba Kembali",
+        icon: "error",
+      });
+    }
+  };
+
+  const masterProductColumns = [
+    { header: "Kode Produk", key: "product_code" },
+    { header: "Nama Produk", key: "product_name" },
+    { header: "Warna", key: "colour" },
+    { header: "Ukuran", key: "size" },
+    { header: "Stok", key: "stock" },
+    {
+      header: "Harga",
+      key: "price",
+      render: (item) =>
+        new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(item.price || 0),
+    },
+    {
+      header: "HPP",
+      key: "capital_price",
+      render: (item) =>
+        new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(item.capital_price || 0),
+    },
+    {
+      header: "Action",
+      key: "actions",
+      render: (item) => (
+        <div className="w-full flex justify-center gap-2">
+          <button className="p-2 rounded-full bg-blue-500 text-white shadow-md hover:bg-blue-600 transition" title="Edit" onClick={() => handleEditProductClick(item)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button className="p-2 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition" title="Delete" onClick={() => handleDeleteProduct(item)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6h18"></path>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+          <button className="p-2 rounded-full bg-yellow-500 text-white shadow-md hover:bg-yellow-600 transition" title="Print" onClick={() => handlePrintProduct(item)}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 9V2h12v7"></path>
+              <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+              <path d="M18 14H6a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2z"></path>
+            </svg>
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const [productColumns, setProductColumns] = useState([]);
+
+  useEffect(() => {
+    setProductColumns(masterProductColumns);
+  }, []);
+
+  return (
+    <div className="w-full flex flex-col gap-10 mx-auto ease-in duration-150">
+      <div className="flex flex-col md:flex-row justify-between">
+        <span className="font-bold text-3xl text-amber-800">Produk</span>
+        <button onClick={() => setIsModalProductOpen({ action: "ADD", isOpen: true })} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-white text-center bg-orange-400 px-7 py-3 rounded-full shadow-md">
+          + Tambah Produk
+        </button>
+      </div>
+      <Table data={tableData} columns={productColumns} onPageChange={handlePageChange} handleChangeSizePerPage={handleChangeSizePerPage} />
+      <PrintProductModal isOpen={isModalPrintProductOpen.isOpen} onClose={handleClose} product={selectedProduct} onSave={handleSaveProduct} />
+      <ProductModal isOpen={isModalProductOpen.isOpen} onClose={handleClose} product={selectedProduct} onSave={handleSaveProduct} action={isModalProductOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterProduct.sizePerPage)} />
+    </div>
+  );
+}

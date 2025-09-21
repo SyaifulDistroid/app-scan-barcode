@@ -5,6 +5,10 @@ import Select from 'react-select';
 
 
 export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, action, callFetchAfterUpdate }) {
+  if (!isOpen) {
+    return null;
+  }
+
   const [selectedMasterSize, setSelectedMasterSize] = useState({})
   const [masterDataSize, setMasterDataSize] = useState([])
 
@@ -34,6 +38,8 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
       price: 0,
       capital_price: 0
     })
+
+    setSelectedMasterSize({})
   }
 
   const handleCancel = () => {
@@ -118,9 +124,12 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     }))
   }
 
-
-  if (!isOpen) {
-    return null;
+  const handleChangeSelectSize = (selectedSize) => {
+    setSelectedMasterSize(selectedSize)
+    setFormData((prevData) => ({
+      ...prevData,
+      size: selectedSize.label
+    }))
   }
 
   const fetchMasterDataSize = async () => {
@@ -174,15 +183,6 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
   useEffect(() => {
     fetchMasterDataSize()
   }, [])
-
-  const handleChangeSelectSize = (selectedSize) => {
-    setSelectedMasterSize(selectedSize)
-    setFormData((prevData) => ({
-      ...prevData,
-      size: selectedSize.label
-    }))
-  }
-
 
   return (
     <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
@@ -302,8 +302,18 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
   );
 }
 
-export function TransactionModal({ isOpen, onClose, transaction: editedTransaction, onSave, action, callFetchAfterUpdate, masterDataProduct }) {
+export function TransactionModal({ isOpen, onClose, transaction: editedTransaction, onSave, action, callFetchAfterUpdate }) {
+
+  if (!isOpen) {
+    return null;
+  }
+
   const [selectedMasterProduct, setSelectedMasterProduct] = useState({})
+  
+  const [masterDataProduct, setMasterDataProduct] = useState({
+      items: [],
+  });
+
 
   const [formData, setFormData] = useState({
     id_product: null,
@@ -314,17 +324,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     qty: action == "SCAN" ? 1 : 0,
     discount: 0,
     admin_fee: 0,
-    remark: ""
+    remark: "",
+    // total_price: 0,
   })
 
   useEffect(() => {
     if (editedTransaction) {
       setFormData({ ...formData, ...editedTransaction })
-      if (masterDataProduct && masterDataProduct.length > 0) {
-        setSelectedMasterProduct(
-          masterDataProduct.find((product) => (product.value == editedTransaction.id_product))
-        )
-      }
     }
   }, [editedTransaction])
 
@@ -338,7 +344,8 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       qty: 0,
       discount: 0,
       admin_fee: 0,
-      remark: ""
+      remark: "",
+      // total_price: 0,
     })
   }
 
@@ -369,8 +376,6 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       return
     }
 
-
-
     if (formData.qty <= 0) {
       Swal.fire({
         title: "Perhatikan",
@@ -388,8 +393,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       payload.qty = parseInt(payload.qty)
       payload.discount = parseInt(payload.discount)
       payload.admin_fee = parseInt(payload.admin_fee)
+      // payload.total_price = parseInt(payload.total_price)
 
       let url = ""
+
+      // if(!payload.created_at) {
+      //   payload.created_at = new Date().toISOString()
+      // }
 
       if (action == "EDIT") {
         url = `${baseUrlAPI}transaction/${editedTransaction.id_transaction}`
@@ -400,14 +410,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
         }
         url = `${baseUrlAPI}transactions`
       }
-
       const response = await fetch(url, {
         method: action == "EDIT" ? "PUT" : "POST",
         headers: {
           'Content-Type': 'application/json',
           ...headersAllowNgrok()
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const result = await response.json()
@@ -454,15 +463,73 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     }))
   }
 
-  if (!isOpen) {
-    return null;
-  }
+  const fetchProductData = async (page = 1, limit = 10, option = null) => {
+      const url = `${baseUrlAPI}products?page=${page}&limit=${limit}`;
+
+      try {
+          const response = await fetch(url, {
+              method: "GET",
+              headers: {
+                  "Content-Type": "application/json",
+                  ...headersAllowNgrok(),
+              },
+          });
+
+          if (response.status !== 200 && response.status !== 201) {
+              Swal.fire({
+                  title: "Error",
+                  text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+                  icon: "error",
+              });
+              return;
+          }
+
+          const result = await response.json();
+          
+          let data = result.data;
+          if (data.items === null) {
+              data.items = [];
+          }
+
+          if (option?.forMaster) {
+              const options = data.items.map((product, index) => ({
+                  label: product.product_name,
+                  value: product.id_product,
+                  detail: JSON.stringify({ ...data.items[index] }),
+              }));
+              setMasterDataProduct(options);
+              
+              if (action == "EDIT") {
+                setSelectedMasterProduct(options.find((product) => (product.value == editedTransaction.id_product))
+              )        
+            }
+          }
+
+      } catch (error) {
+          Swal.fire({
+              title: "Error",
+              text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+              icon: "error",
+          });
+      }
+  };
+  
+  useEffect(() => {
+      fetchProductData(1, 99999, {forMaster: true})
+  }, [])
 
   const handleChangeSelectProduct = (selectedProduct) => {
     setSelectedMasterProduct(selectedProduct)
+    selectedProduct = JSON.parse(selectedProduct.detail)
+
+    if (selectedProduct.created_at || selectedProduct.updated_at) {
+      selectedProduct.created_at = null
+      selectedProduct.updated_at = null
+    }
+
     setFormData((prevData) => ({
       ...prevData,
-      ...JSON.parse(selectedProduct.detail)
+      ...selectedProduct
     }))
   }
 
@@ -576,11 +643,23 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             />
           </div>
 
+          {/* <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>Total Harga</label>
+            <input
+              type='number'
+              name='total_price'
+              defaultValue={formData.total_price || editedTransaction?.total_price || "0"}
+              onChange={handleChangeField}
+              required
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+            />
+          </div> */}
+
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Keterangan</label>
             <textarea
               name='remark'
-              defaultValue={editedTransaction?.remark || "0"}
+              defaultValue={editedTransaction?.remark || ""}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             ></textarea>
