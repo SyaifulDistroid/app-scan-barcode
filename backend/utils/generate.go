@@ -241,3 +241,32 @@ func RandomStringFromCharset(length int, charset string) string {
 	}
 	return string(result)
 }
+
+ func FormatFloat(f float64) string {
+	s := fmt.Sprintf("%.2f", f)
+	if strings.HasSuffix(s, ".00") {
+		s = s[:len(s)-3]
+	}
+	// Add thousand separator (.)
+	n := len(s)
+	decIdx := strings.Index(s, ".")
+	if decIdx == -1 {
+		decIdx = n
+	}
+	intPart := s[:decIdx]
+	decPart := ""
+	if decIdx < n {
+		decPart = s[decIdx:]
+	}
+	var result []byte
+	cnt := 0
+	for i := len(intPart) - 1; i >= 0; i-- {
+		result = append([]byte{intPart[i]}, result...)
+		cnt++
+		if cnt%3 == 0 && i != 0 {
+			result = append([]byte{'.'}, result...)
+		}
+	}
+	return string(result) + decPart
+}
+	

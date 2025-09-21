@@ -782,7 +782,7 @@ func generateReport(c *fiber.Ctx) error {
 	}
 
 	rows, err := db.Query(`
-		SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at 
+		SELECT id_transaction, id_product, product_code, product_name, colour, size, remark, qty, discount, admin_fee, total_price, created_at 
 		FROM transactions 
 		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?`, startDate, endDate)
 	if err != nil {
@@ -796,38 +796,46 @@ func generateReport(c *fiber.Ctx) error {
 
 	// Prepare data for PDF
 	var data [][]string
-	data = append(data, []string{"No", "Product Code", "Product Name", "Colour", "Size", "Quantity", "Discount", "Admin Fee", "Remark", "Total Price"})
-	var totalPriceSum float64
+	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Keterangan", "Qty", "Diskon", "Admin", "Total Harga"})
+	var totalPriceSum,disc,admin float64
+	var qty int
 
 	no := 1
 	for rows.Next() {
 		var trx model.Transaction
-		if err := rows.Scan(&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.Remark, &trx.TotalPrice, &trx.CreatedAt); err != nil {
+		if err := rows.Scan(&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.Remark, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.TotalPrice, &trx.CreatedAt); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 				Data:    nil,
 			})
 		}
+
 		data = append(data, []string{
 			fmt.Sprintf("%d", no),
 			trx.ProductCode,
 			trx.ProductName,
 			trx.Colour,
 			trx.Size,
-			fmt.Sprintf("%d", trx.Qty),
-			fmt.Sprintf("%.2f", trx.Discount),
-			fmt.Sprintf("%.2f", trx.AdminFee),
 			trx.Remark,
-			fmt.Sprintf("%.2f", trx.TotalPrice),
+			fmt.Sprintf("%d", trx.Qty),
+			utils.FormatFloat(trx.Discount),
+			utils.FormatFloat(trx.AdminFee),
+			utils.FormatFloat(trx.TotalPrice),
 		})
 		no++
+		disc+= trx.Discount
+		admin+= trx.AdminFee
+		qty+= trx.Qty
 		totalPriceSum += trx.TotalPrice
 	}
 
-	// Add total row
-	data = append(data, []string{"", "", "", "", "", "", "", "", "Total", fmt.Sprintf("%.2f", totalPriceSum)})
-
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetFont("Arial", "B", 12)
+	pdf.AddPage()	
+	pdf.Cell(0, 10, fmt.Sprintf("Report Period: %s to %s", startDate, endDate))
+	pdf.Ln(15)
+	
 	// Generate PDF file
 	reportFolder := "./public/report"
 	if _, err := os.Stat(reportFolder); os.IsNotExist(err) {
@@ -841,12 +849,12 @@ func generateReport(c *fiber.Ctx) error {
 	}
 
 	filename := fmt.Sprintf("%s/report_%s_to_%s.pdf", reportFolder, startDate, endDate)
-	pdf := gofpdf.New("L", "mm", "A4", "")
-	pdf.SetFont("Arial", "B", 12)
-	pdf.AddPage()
 
 	// Add table header
-	for _, header := range data[0] {
+	pdf.CellFormat(12, 10, data[0][0], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+	pdf.CellFormat(33, 10, data[0][1], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+	pdf.CellFormat(33, 10, data[0][2], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+	for _, header := range data[0][3:] {
 		pdf.CellFormat(28, 10, header, "1", 0, "C", false, 0, "")
 	}
 	pdf.Ln(-1)
@@ -854,14 +862,29 @@ func generateReport(c *fiber.Ctx) error {
 	// Add table rows
 	pdf.SetFont("Arial", "", 10)
 	for _, row := range data[1:] {
-		for _, col := range row {
+		pdf.CellFormat(12, 10, row[0], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+		pdf.CellFormat(33, 10, row[1], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+		pdf.CellFormat(33, 10, row[2], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
+		for _, col := range row[3:] {
 			pdf.CellFormat(28, 10, col, "1", 0, "C", false, 0, "")
-		}
-		pdf.Ln(-1)
-	}
+    }
+    pdf.Ln(-1)
+}
+	
+	totalLabelWidth := 28.0 * 3 + 78 // 9 kolom pertama
+	totalValueWidth := 28.0     // kolom terakhir
+	
+	pdf.SetFont("Arial", "B", 12)
+	pdf.CellFormat(totalLabelWidth, 10, "Total", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, fmt.Sprintf("%v",qty), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(disc), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(admin), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(totalPriceSum), "1", 0, "C", false, 0, "")
+	pdf.Ln(-1)
 
 	err = pdf.OutputFileAndClose(filename)
 	if err != nil {
+		fmt.Println(err.Error())
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: "Failed to create report file",
