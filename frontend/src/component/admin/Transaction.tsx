@@ -102,7 +102,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
     
         try {    
           const response = await fetch(`${baseUrlAPI}report?start_date=${filterTrx.start_date}&end_date=${filterTrx.end_date}`, {
-            method: "GET",
+            method: "POST",
             headers: {
               'Content-Type': 'application/json',
               ...headersAllowNgrok()
@@ -121,7 +121,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
     
           Swal.fire({
             title: "Sukses",
-            text: `Berhasil Generate QR Code Data`,
+            text: `Berhasil Generate Report Data`,
             icon: "success",
           });
 

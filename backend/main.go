@@ -138,7 +138,7 @@ func main() {
 	app.Post("/print", generateQR)
 
 	// Report
-	app.Get("/report", generateReport)
+	app.Post("/report", generateReport)
 
 	log.Fatal(app.Listen(":3000"))
 }
