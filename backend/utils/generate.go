@@ -15,7 +15,6 @@ import (
 	"github.com/fogleman/gg"
 	"github.com/go-pdf/fpdf"
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang/freetype/truetype"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -40,19 +39,6 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	logoPath := "./public/ocik-logo.png"
 	logoRatio := 0.18
 
-	// Load font TTF
-	fontBytes, err := os.ReadFile("BeeLeaveRegular-3zR66.ttf") // Ganti dengan font kamu
-	if err != nil {
-		return c.Status(500).SendString(err.Error())
-	}
-	ft, err := truetype.Parse(fontBytes)
-	if err != nil {
-		return c.Status(500).SendString(err.Error())
-	}
-	faceTitle := truetype.NewFace(ft, &truetype.Options{Size: 70})
-	faceSub := truetype.NewFace(ft, &truetype.Options{Size: 40})
-	facePrice := truetype.NewFace(ft, &truetype.Options{Size: 50})
-
 	// Ukuran canvas keseluruhan (atas teks + QR + bawah teks)
 	qrOffsetY := 18
 	canvasHeight := qrSize
@@ -61,15 +47,6 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	// Background putih
 	dc.SetRGB(1, 1, 1)
 	dc.Clear()
-
-	// Teks Atas
-	dc.SetFontFace(faceTitle)
-	dc.SetRGB(139, 0, 0)
-	dc.DrawStringAnchored(fmt.Sprintf("%s - %s", data.ProductName, data.Size), float64(qrSize)/2, 15, 0.5, 0.5)
-
-	dc.SetFontFace(faceSub)
-	dc.SetRGB(139, 0, 0)
-	dc.DrawStringAnchored(data.Colour, float64(qrSize)/2, 60, 0.5, 0.5)
 
 	// Generate QR code
 	qr, err := qrcode.New(content, qrcode.Highest)
@@ -130,11 +107,6 @@ func GenerateQRtoFile(c *fiber.Ctx, data model.Product) error {
 	resizedLogo := imaging.Resize(logoImg, logoW, 0, imaging.Lanczos)
 	dc.DrawImageAnchored(resizedLogo, qrSize/2, qrOffsetY+qrSize/2, 0.5, 0.5)
 
-	// Teks Harga di bawah QR
-	dc.SetFontFace(facePrice)
-	dc.SetRGB(0, 0, 139)
-	dc.DrawStringAnchored(formatPrice(data.Price), float64(qrSize)/2, float64(qrSize)-35, 0.5, 0.5)
-
 	// Simpan PNG
 	outFile, err := os.Create(outfile)
 	if err != nil {
@@ -187,7 +159,7 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 	marginTop := 10.0
 	qrSize := 25.0 // ukuran per QR (mm)
 	spaceX := 3.0
-	spaceY := 5.0
+	spaceY := 7.0
 
 	maxCols := int((210 - marginLeft) / (qrSize + spaceX))
 	maxRows := int((297 - marginTop) / (qrSize + spaceY))
@@ -199,6 +171,10 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 		x := marginLeft + float64(col)*(qrSize+spaceX)
 		y := marginTop + float64(row)*(qrSize+spaceY)
 
+		pdf.AddUTF8Font("BeeLeaveRegular", "", "./BeeLeaveRegular-3zR66.ttf")
+		pdf.SetFont("BeeLeaveRegular", "", 10)
+
+		// Add QR code image below the price text
 		pdf.ImageOptions(
 			fmt.Sprintf("%s/product-qr-%v.png", barcodeDir, data.IDProduct), // hasil dari GenerateQR
 			x, y,
@@ -208,6 +184,26 @@ func GenerateQR(data model.Product, qty int) (string, error) {
 			0,
 			"",
 		)
+
+		// Calculate text width and center it
+		text := fmt.Sprintf("%s - %s", data.ProductName, data.Size)
+		textWidth := pdf.GetStringWidth(text)
+		textX := x + (qrSize-textWidth)/2
+		pdf.Text(textX, y, text)
+
+		// Add sub colour text below the main text
+		pdf.SetFont("BeeLeaveRegular", "", 6)
+		subColour := data.Colour
+		subColourWidth := pdf.GetStringWidth(subColour)
+		subColourX := x + (qrSize-subColourWidth)/2
+		pdf.Text(subColourX, y+2, subColour)
+
+		// Add price text below the sub colour text
+		priceText := formatPrice(data.Price)
+		priceTextWidth := pdf.GetStringWidth(priceText)
+		priceTextX := x + (qrSize-priceTextWidth)/2
+		pdf.SetFont("BeeLeaveRegular", "", 8)
+		pdf.Text(priceTextX-2, y+26, priceText)
 
 		// Next position
 		col++
@@ -242,7 +238,7 @@ func RandomStringFromCharset(length int, charset string) string {
 	return string(result)
 }
 
- func FormatFloat(f float64) string {
+func FormatFloat(f float64) string {
 	s := fmt.Sprintf("%.2f", f)
 	if strings.HasSuffix(s, ".00") {
 		s = s[:len(s)-3]
@@ -269,4 +265,3 @@ func RandomStringFromCharset(length int, charset string) string {
 	}
 	return string(result) + decPart
 }
-	

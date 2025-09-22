@@ -782,9 +782,10 @@ func generateReport(c *fiber.Ctx) error {
 	}
 
 	rows, err := db.Query(`
-		SELECT id_transaction, id_product, product_code, product_name, colour, size, remark, qty, discount, admin_fee, total_price, created_at 
+		SELECT id_product, product_code, product_name, colour, size, sum(qty) as total_qty, sum(discount) as total_discount, sum(admin_fee) as total_admin, sum(total_price) as total_price
 		FROM transactions 
-		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?`, startDate, endDate)
+		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?
+		group by id_product`, startDate, endDate)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -796,14 +797,12 @@ func generateReport(c *fiber.Ctx) error {
 
 	// Prepare data for PDF
 	var data [][]string
-	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Keterangan", "Qty", "Diskon", "Admin", "Total Harga"})
-	var totalPriceSum,disc,admin float64
-	var qty int
+	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Total Qty", "Total Diskon", "Total Admin", "Total Harga"})
 
 	no := 1
 	for rows.Next() {
-		var trx model.Transaction
-		if err := rows.Scan(&trx.IDTransaction, &trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.Remark, &trx.Qty, &trx.Discount, &trx.AdminFee, &trx.TotalPrice, &trx.CreatedAt); err != nil {
+		var trx model.Report
+		if err := rows.Scan(&trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.TotalQty, &trx.TotalDiscount, &trx.TotalAdmin, &trx.TotalPrice); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -817,25 +816,20 @@ func generateReport(c *fiber.Ctx) error {
 			trx.ProductName,
 			trx.Colour,
 			trx.Size,
-			trx.Remark,
-			fmt.Sprintf("%d", trx.Qty),
-			utils.FormatFloat(trx.Discount),
-			utils.FormatFloat(trx.AdminFee),
+			fmt.Sprintf("%d", trx.TotalQty),
+			utils.FormatFloat(trx.TotalDiscount),
+			utils.FormatFloat(trx.TotalAdmin),
 			utils.FormatFloat(trx.TotalPrice),
 		})
 		no++
-		disc+= trx.Discount
-		admin+= trx.AdminFee
-		qty+= trx.Qty
-		totalPriceSum += trx.TotalPrice
 	}
 
 	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.SetFont("Arial", "B", 12)
-	pdf.AddPage()	
+	pdf.AddPage()
 	pdf.Cell(0, 10, fmt.Sprintf("Report Period: %s to %s", startDate, endDate))
 	pdf.Ln(15)
-	
+
 	// Generate PDF file
 	reportFolder := "./public/report"
 	if _, err := os.Stat(reportFolder); os.IsNotExist(err) {
@@ -850,37 +844,23 @@ func generateReport(c *fiber.Ctx) error {
 
 	filename := fmt.Sprintf("%s/report_%s_to_%s.pdf", reportFolder, startDate, endDate)
 
+	colWidths := []float64{12, 35, 35, 35, 25, 30, 35, 35, 35}
+
 	// Add table header
-	pdf.CellFormat(12, 10, data[0][0], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-	pdf.CellFormat(33, 10, data[0][1], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-	pdf.CellFormat(33, 10, data[0][2], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-	for _, header := range data[0][3:] {
-		pdf.CellFormat(28, 10, header, "1", 0, "C", false, 0, "")
+	for i, header := range data[0] {
+		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", false, 0, "")
 	}
+
 	pdf.Ln(-1)
 
 	// Add table rows
 	pdf.SetFont("Arial", "", 10)
 	for _, row := range data[1:] {
-		pdf.CellFormat(12, 10, row[0], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-		pdf.CellFormat(33, 10, row[1], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-		pdf.CellFormat(33, 10, row[2], "1", 0, "C", false, 0, "") // Kolom No lebih kecil
-		for _, col := range row[3:] {
-			pdf.CellFormat(28, 10, col, "1", 0, "C", false, 0, "")
-    }
-    pdf.Ln(-1)
-}
-	
-	totalLabelWidth := 28.0 * 3 + 78 // 9 kolom pertama
-	totalValueWidth := 28.0     // kolom terakhir
-	
-	pdf.SetFont("Arial", "B", 12)
-	pdf.CellFormat(totalLabelWidth, 10, "Total", "1", 0, "C", false, 0, "")
-	pdf.CellFormat(totalValueWidth, 10, fmt.Sprintf("%v",qty), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(disc), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(admin), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(totalPriceSum), "1", 0, "C", false, 0, "")
-	pdf.Ln(-1)
+		for i, col := range row {
+			pdf.CellFormat(colWidths[i], 10, col, "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
 
 	err = pdf.OutputFileAndClose(filename)
 	if err != nil {

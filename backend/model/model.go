@@ -44,3 +44,15 @@ type Size struct {
 	ID   int    `json:"id_size"`
 	Size string `json:"size"`
 }
+
+type Report struct {
+	IDProduct     int     `json:"id_product"`
+	ProductCode   string  `json:"product_code"`
+	ProductName   string  `json:"product_name"`
+	Colour        string  `json:"colour"`
+	Size          string  `json:"size"`
+	TotalQty      int     `json:"total_qty"`
+	TotalDiscount float64 `json:"total_discount"`
+	TotalAdmin    float64 `json:"total_admin"`
+	TotalPrice    float64 `json:"total_price"`
+}
