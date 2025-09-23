@@ -249,11 +249,22 @@ func editProduct(c *fiber.Ctx) error {
 func listProducts(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
+	search := c.Query("search")
 	offset := (page - 1) * limit
 
 	// Hitung total data
 	var total int
-	err := db.QueryRow("SELECT COUNT(*) FROM products WHERE is_active = 1").Scan(&total)
+	var countQuery = "SELECT COUNT(*) FROM products WHERE is_active = 1"
+	var countArgs []interface{}
+
+	if search != "" {
+		countQuery += " AND (product_code LIKE ? COLLATE NOCASE OR product_name LIKE ? COLLATE NOCASE OR colour LIKE ? COLLATE NOCASE OR size LIKE ? COLLATE NOCASE)"
+		searchLike := "%" + search + "%"
+		countArgs = append(countArgs, searchLike, searchLike, searchLike, searchLike)
+	}
+
+	err := db.QueryRow(countQuery, countArgs...).Scan(&total)
+
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -262,7 +273,20 @@ func listProducts(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1 LIMIT ? OFFSET ?", limit, offset)
+	var args []interface{}
+	var strQuery = "SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1"
+
+	if search != "" {
+		strQuery += " AND (product_code LIKE ? COLLATE NOCASE OR product_name LIKE ? COLLATE NOCASE OR colour LIKE ? COLLATE NOCASE OR size LIKE ? COLLATE NOCASE)"
+		searchLike := "%" + search + "%"
+		args = append(args, searchLike, searchLike, searchLike, searchLike)
+	}
+
+	strQuery += " ORDER BY product_code ASC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := db.Query(strQuery, args...)
+
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
