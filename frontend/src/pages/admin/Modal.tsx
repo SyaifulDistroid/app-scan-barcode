@@ -68,10 +68,10 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
       let url = ""
 
       if (action == "EDIT") {
-        url = `${baseUrlAPI}product/${editedProduct.id_product}`
+        url = `${baseUrlAPI}/product/${editedProduct.id_product}`
         payload.id_product = editedProduct.id_product
       } else if (action == "ADD") {
-        url = `${baseUrlAPI}products`
+        url = `${baseUrlAPI}/products`
       }
 
       const response = await fetch(url, {
@@ -133,7 +133,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
   }
 
   const fetchMasterDataSize = async () => {
-    const url = `${baseUrlAPI}sizes`
+    const url = `${baseUrlAPI}/sizes`
 
     try {
       const response = await fetch(url, {
@@ -402,13 +402,13 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       // }
 
       if (action == "EDIT") {
-        url = `${baseUrlAPI}transaction/${editedTransaction.id_transaction}`
+        url = `${baseUrlAPI}/transaction/${editedTransaction.id_transaction}`
         payload.id_transaction = parseInt(editedTransaction.id_transaction)
       } else {
         if (action == "SCAN") {
           payload.id_product = parseInt(editedTransaction.id_product)
         }
-        url = `${baseUrlAPI}transactions`
+        url = `${baseUrlAPI}/transactions`
       }
       const response = await fetch(url, {
         method: action == "EDIT" ? "PUT" : "POST",
@@ -464,7 +464,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
   }
 
   const fetchProductData = async (page = 1, limit = 10, option = null) => {
-      const url = `${baseUrlAPI}products?page=${page}&limit=${limit}`;
+      const url = `${baseUrlAPI}/products?page=${page}&limit=${limit}`;
 
       try {
           const response = await fetch(url, {
@@ -735,7 +735,7 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
 
       payload.qty = parseInt(payload.qty)
 
-      const response = await fetch(`${baseUrlAPI}print/`, {
+      const response = await fetch(`${baseUrlAPI}/print/`, {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',

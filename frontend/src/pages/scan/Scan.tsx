@@ -88,7 +88,7 @@ export default function ScanPage() {
     const getProductDetailByID =  async (productId) => {
         try {
             setIsSimulating(false)
-            const response = await fetch(`${baseUrlAPI}product/${productId}`, {
+            const response = await fetch(`${baseUrlAPI}/product/${productId}`, {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',

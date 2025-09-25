@@ -19,7 +19,7 @@ export default function LoginPage({handlePullRole}) {
     });
 
     try {
-      const response = await fetch(`${baseUrlAPI}login`, {
+      const response = await fetch(`${baseUrlAPI}/login`, {
         method: "POST",
         body: JSON.stringify({username: username, password: password}),
           headers: {

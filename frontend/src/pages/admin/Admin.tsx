@@ -19,9 +19,9 @@ export default function AdminPage() {
     total: 0,
   });
 
-  const [masterProductData, setMasterProductData] = useState({
-    items: [],
-  });
+  // const [masterProductData, setMasterProductData] = useState({
+  //   items: [],
+  // });
 
   const resetTableData = () => {
     setTableData({
@@ -32,8 +32,17 @@ export default function AdminPage() {
     });
   };
 
-  const fetchTableData = async (selectedTab, page = 1, limit = 10, option = null, start_date = new Date().toISOString().split("T")[0], end_date = new Date().toISOString().split("T")[0]) => {
-    const url = `${baseUrlAPI}${selectedTab === "product" ? "products" : "transactions"}?page=${page}&limit=${limit}&start_date=${start_date}&end_date=${end_date}`;
+  const fetchTableData = async (selectedTab, page = 1, limit = 10, option = null, start_date = new Date().toISOString().split("T")[0], end_date = new Date().toISOString().split("T")[0], keyword = "") => {
+    
+    let queryparam = `page=${page}&limit=${limit}`
+
+    if (selectedTab != "product") {
+      queryparam += `&start_date=${start_date}&end_date=${end_date}`
+    } else {
+      queryparam += `&search=${keyword}`
+    }
+
+    const url = `${baseUrlAPI}/${selectedTab === "product" ? "products" : "transactions"}?${queryparam}`;
 
     try {
       const response = await fetch(url, {

@@ -35,7 +35,7 @@ function App() {
         }
 
         try {
-            const response = await fetch(`${baseUrlAPI}login`, {
+            const response = await fetch(`${baseUrlAPI}/login`, {
                 method: "POST",
                 body: JSON.stringify({
                     username: username,
