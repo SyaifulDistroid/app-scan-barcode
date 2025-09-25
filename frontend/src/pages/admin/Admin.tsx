@@ -36,10 +36,12 @@ export default function AdminPage() {
     
     let queryparam = `page=${page}&limit=${limit}`
 
-    if (selectedTab != "product") {
+    if (selectedTab != "product"){
       queryparam += `&start_date=${start_date}&end_date=${end_date}`
-    } else {
-      queryparam += `&search=${keyword}`
+    } else {    
+      if (keyword != "") {
+        queryparam += `&search=${keyword}`
+      }
     }
 
     const url = `${baseUrlAPI}/${selectedTab === "product" ? "products" : "transactions"}?${queryparam}`;

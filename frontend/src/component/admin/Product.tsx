@@ -216,7 +216,7 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
         {/* <span className="font-bold text-3xl text-amber-800">Produk</span> */}
           <form onSubmit={handleClickFilter}>
             <div className="font-bold flex items-center gap-4 text-gray-800">
-                <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" required value={filterProduct.keyword} onChange={(e) => setFilterProduct((prevState) => ({ ...prevState, keyword: e.target.value }))} name="keyword" maxLength={25} placeholder="Search:" type="text"  />
+                <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterProduct.keyword} onChange={(e) => setFilterProduct((prevState) => ({ ...prevState, keyword: e.target.value }))} name="keyword" maxLength={25} placeholder="Search:" type="text"  />
                 <button type="submit" className="w-full flex gap-2 duration-100 ease-in max-w-fit font-bold text-white hover:bg-orange-500 text-center bg-orange-400 px-5 py-2 rounded-full shadow-md">
                     <span>Search</span>
                 </button>
