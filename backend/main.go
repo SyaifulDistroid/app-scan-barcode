@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -121,6 +122,7 @@ func main() {
 	app.Put("/product/:id", editProduct)
 	app.Get("/product/:id", getProduct)
 	app.Delete("/product/:id", deleteProduct)
+	app.Post("/print/products", printProducts)
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
@@ -282,7 +284,7 @@ func listProducts(c *fiber.Ctx) error {
 		args = append(args, searchLike, searchLike, searchLike, searchLike)
 	}
 
-	strQuery += " ORDER BY product_code ASC LIMIT ? OFFSET ?"
+	strQuery += " ORDER BY product_name ASC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := db.Query(strQuery, args...)
@@ -428,6 +430,7 @@ func listTransactions(c *fiber.Ctx) error {
 		SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at 
 		FROM transactions 
 		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ? 
+		ORDER BY product_name ASC
 		LIMIT ? OFFSET ?`, dateFrom, dateTo, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
@@ -824,6 +827,10 @@ func generateReport(c *fiber.Ctx) error {
 	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Total Qty", "Total Diskon", "Total Admin", "Total Harga"})
 
 	no := 1
+	qty := 0
+	disc := 0
+	admin := 0
+	totalPriceSum := 0
 	for rows.Next() {
 		var trx model.Report
 		if err := rows.Scan(&trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.TotalQty, &trx.TotalDiscount, &trx.TotalAdmin, &trx.TotalPrice); err != nil {
@@ -846,6 +853,10 @@ func generateReport(c *fiber.Ctx) error {
 			utils.FormatFloat(trx.TotalPrice),
 		})
 		no++
+		qty += trx.TotalQty
+		disc += int(trx.TotalDiscount)
+		admin += int(trx.TotalAdmin)
+		totalPriceSum += int(trx.TotalPrice)
 	}
 
 	pdf := gofpdf.New("L", "mm", "A4", "")
@@ -868,7 +879,113 @@ func generateReport(c *fiber.Ctx) error {
 
 	filename := fmt.Sprintf("%s/report_%s_to_%s.pdf", reportFolder, startDate, endDate)
 
-	colWidths := []float64{12, 35, 35, 35, 25, 30, 35, 35, 35}
+	colWidths := []float64{12, 35, 35, 35, 25, 35, 35, 35, 35}
+
+	// Add table header
+	for i, header := range data[0] {
+		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", false, 0, "")
+	}
+
+	pdf.Ln(-1)
+
+	// Add table rows
+	pdf.SetFont("Arial", "", 10)
+	for _, row := range data[1:] {
+		for i, col := range row {
+			pdf.CellFormat(colWidths[i], 10, col, "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
+	totalLabelWidth := 12 + 35 + 35 + 35 + 25
+	totalValueWidth := 35.0
+	
+	pdf.SetFont("Arial", "B", 12)
+	pdf.CellFormat(float64(totalLabelWidth), 10, "Total", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(qty)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(disc)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(admin)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalPriceSum)), "1", 0, "C", false, 0, "")
+	err = pdf.OutputFileAndClose(filename)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to create report file",
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Report generated successfully",
+		Data:    fmt.Sprintf("http://%s/report/%s", c.Hostname(), filename[len(reportFolder)+1:]),
+	})
+}
+
+func printProducts(c *fiber.Ctx) error {
+	var strQuery = "SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1 and stock != 0"
+
+	strQuery += " ORDER BY product_name ASC"
+	
+	rows, err := db.Query(strQuery)
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	defer rows.Close()
+	
+	var data [][]string
+	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Stok"})
+	no := 1
+
+	for rows.Next() {
+		var it model.Product
+		if err := rows.Scan(&it.IDProduct, &it.ProductCode, &it.ProductName, &it.Colour, &it.Size,
+			&it.Stock, &it.Price, &it.CapitalPrice, &it.IsActive, &it.CreatedAt, &it.UpdatedAt); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+				Data:    nil,
+			})
+		}
+		
+		data = append(data, []string{ 
+			fmt.Sprintf("%d", no),
+			it.ProductCode,
+			it.ProductName,
+			it.Colour,
+			it.Size,
+			fmt.Sprintf("%d", it.Stock),
+		})
+		no++
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetFont("Arial", "B", 12)
+	pdf.AddPage()
+	pdf.Cell(0, 10, "Report Products")
+	pdf.Ln(15)
+
+	// Generate PDF file
+	reportFolder := "./public/report"
+	if _, err := os.Stat(reportFolder); os.IsNotExist(err) {
+		if err := os.MkdirAll(reportFolder, os.ModePerm); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to create report folder",
+				Data:    nil,
+			})
+		}
+	}
+
+	filename := fmt.Sprintf("%s/report_products_%s.pdf", reportFolder, time.Now().Format("20060102"))
+
+	colWidths := []float64{15, 35, 35, 35, 35, 35, 35}
 
 	// Add table header
 	for i, header := range data[0] {
