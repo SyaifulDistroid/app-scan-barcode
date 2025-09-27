@@ -46,13 +46,22 @@ type Size struct {
 }
 
 type Report struct {
-	IDProduct     int     `json:"id_product"`
-	ProductCode   string  `json:"product_code"`
-	ProductName   string  `json:"product_name"`
-	Colour        string  `json:"colour"`
-	Size          string  `json:"size"`
-	TotalQty      int     `json:"total_qty"`
-	TotalDiscount float64 `json:"total_discount"`
-	TotalAdmin    float64 `json:"total_admin"`
-	TotalPrice    float64 `json:"total_price"`
+	IDProduct         int     `json:"id_product"`
+	ProductCode       string  `json:"product_code"`
+	ProductName       string  `json:"product_name"`
+	Colour            string  `json:"colour"`
+	Size              string  `json:"size"`
+	TotalQty          int     `json:"total_qty"`
+	TotalDiscount     float64 `json:"total_discount"`
+	TotalAdmin        float64 `json:"total_admin"`
+	TotalPrice        float64 `json:"total_price"`
+	TotalCapitalPrice float64 `json:"total_capital_price"`
+}
+
+type Summary struct {
+	Date              string  `json:"date"`
+	TotalQty          int     `json:"total_qty"`
+	TotalPrice        float64 `json:"total_price"`
+	TotalCapitalPrice float64 `json:"total_capital_price"`
+	TotalProfit       float64 `json:"total_profit"`
 }

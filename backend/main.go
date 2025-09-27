@@ -142,6 +142,9 @@ func main() {
 	// Report
 	app.Post("/report", generateReport)
 
+	// Summary
+	app.Get("/summary", getSummary)
+
 	log.Fatal(app.Listen(":3000"))
 }
 
@@ -337,16 +340,7 @@ func addTransaction(c *fiber.Ctx) error {
 	var stok int
 	var price float64
 
-	err := db.QueryRow("SELECT stock FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&stok)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(model.Response{
-			Code:    http.StatusInternalServerError,
-			Message: err.Error(),
-			Data:    nil,
-		})
-	}
-
-	err = db.QueryRow("SELECT price FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&price)
+	err := db.QueryRow("SELECT stock, price FROM products WHERE is_active = 1 and id_product = ?", trx.IDProduct).Scan(&stok, &price)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -809,10 +803,13 @@ func generateReport(c *fiber.Ctx) error {
 	}
 
 	rows, err := db.Query(`
-		SELECT id_product, product_code, product_name, colour, size, sum(qty) as total_qty, sum(discount) as total_discount, sum(admin_fee) as total_admin, sum(total_price) as total_price
-		FROM transactions 
-		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?
-		group by id_product`, startDate, endDate)
+	SELECT t.id_product, t.product_code, t.product_name, t.colour, t.size, sum(t.qty) as total_qty, sum(t.discount) as total_discount, sum(t.total_price) as total_price, sum(p.capital_price * t.qty) as total_capital_price
+		FROM transactions t
+		JOIN products p 
+		ON p.id_product = t.id_product 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ?
+		group by t.id_product
+		ORDER by t.product_name ASC`, startDate, endDate)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -824,16 +821,18 @@ func generateReport(c *fiber.Ctx) error {
 
 	// Prepare data for PDF
 	var data [][]string
-	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Total Qty", "Total Diskon", "Total Admin", "Total Harga"})
+	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Qty", "Diskon", "Harga", "HPP", "Profit"})
 
 	no := 1
 	qty := 0
 	disc := 0
 	admin := 0
 	totalPriceSum := 0
+	totalCapitalPriceSum := 0
+	totalProfitSum := 0
 	for rows.Next() {
 		var trx model.Report
-		if err := rows.Scan(&trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.TotalQty, &trx.TotalDiscount, &trx.TotalAdmin, &trx.TotalPrice); err != nil {
+		if err := rows.Scan(&trx.IDProduct, &trx.ProductCode, &trx.ProductName, &trx.Colour, &trx.Size, &trx.TotalQty, &trx.TotalDiscount, &trx.TotalPrice, &trx.TotalCapitalPrice); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -849,14 +848,17 @@ func generateReport(c *fiber.Ctx) error {
 			trx.Size,
 			fmt.Sprintf("%d", trx.TotalQty),
 			utils.FormatFloat(trx.TotalDiscount),
-			utils.FormatFloat(trx.TotalAdmin),
 			utils.FormatFloat(trx.TotalPrice),
+			utils.FormatFloat(trx.TotalCapitalPrice),
+			utils.FormatFloat(trx.TotalPrice - trx.TotalCapitalPrice),
 		})
 		no++
 		qty += trx.TotalQty
 		disc += int(trx.TotalDiscount)
 		admin += int(trx.TotalAdmin)
 		totalPriceSum += int(trx.TotalPrice)
+		totalCapitalPriceSum += int(trx.TotalCapitalPrice)
+		totalProfitSum += int(trx.TotalPrice - trx.TotalCapitalPrice)
 	}
 
 	pdf := gofpdf.New("L", "mm", "A4", "")
@@ -879,7 +881,7 @@ func generateReport(c *fiber.Ctx) error {
 
 	filename := fmt.Sprintf("%s/report_%s_to_%s.pdf", reportFolder, startDate, endDate)
 
-	colWidths := []float64{12, 35, 35, 35, 25, 35, 35, 35, 35}
+	colWidths := []float64{12, 30, 30, 30, 20, 30, 30, 30, 30, 30}
 
 	// Add table header
 	for i, header := range data[0] {
@@ -897,15 +899,16 @@ func generateReport(c *fiber.Ctx) error {
 		pdf.Ln(-1)
 	}
 
-	totalLabelWidth := 12 + 35 + 35 + 35 + 25
-	totalValueWidth := 35.0
-	
+	totalLabelWidth := 12 + 30 + 30 + 30 + 20
+	totalValueWidth := 30.0
+
 	pdf.SetFont("Arial", "B", 12)
 	pdf.CellFormat(float64(totalLabelWidth), 10, "Total", "1", 0, "C", false, 0, "")
 	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(qty)), "1", 0, "C", false, 0, "")
 	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(disc)), "1", 0, "C", false, 0, "")
-	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(admin)), "1", 0, "C", false, 0, "")
 	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalPriceSum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalCapitalPriceSum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalProfitSum)), "1", 0, "C", false, 0, "")
 	err = pdf.OutputFileAndClose(filename)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -927,7 +930,7 @@ func printProducts(c *fiber.Ctx) error {
 	var strQuery = "SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1 and stock != 0"
 
 	strQuery += " ORDER BY product_name ASC"
-	
+
 	rows, err := db.Query(strQuery)
 
 	if err != nil {
@@ -938,7 +941,7 @@ func printProducts(c *fiber.Ctx) error {
 		})
 	}
 	defer rows.Close()
-	
+
 	var data [][]string
 	data = append(data, []string{"No", "Kode Produk", "Nama Produk", "Warna", "Ukuran", "Stok"})
 	no := 1
@@ -953,8 +956,8 @@ func printProducts(c *fiber.Ctx) error {
 				Data:    nil,
 			})
 		}
-		
-		data = append(data, []string{ 
+
+		data = append(data, []string{
 			fmt.Sprintf("%d", no),
 			it.ProductCode,
 			it.ProductName,
@@ -1017,5 +1020,60 @@ func printProducts(c *fiber.Ctx) error {
 		Code:    http.StatusOK,
 		Message: "Report generated successfully",
 		Data:    fmt.Sprintf("http://%s/report/%s", c.Hostname(), filename[len(reportFolder)+1:]),
+	})
+}
+
+func getSummary(c *fiber.Ctx) error {
+
+	rows, err := db.Query(`
+			SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
+			FROM transactions t 
+			JOIN products p
+			ON t.id_product = p.id_product 
+			group by DATE(t.created_at)
+			ORDER by DATE(t.created_at) ASC`)
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	defer rows.Close()
+
+	var summaries []model.Summary
+	totalPrice := 0.0
+	totalCapitalPrice := 0.0
+	totalProfit := 0.0
+	totalQty := 0
+	for rows.Next() {
+		var it model.Summary
+		if err := rows.Scan(&it.Date, &it.TotalQty, &it.TotalPrice, &it.TotalCapitalPrice); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+				Data:    nil,
+			})
+		}
+		it.TotalProfit = it.TotalPrice - it.TotalCapitalPrice
+		totalPrice += it.TotalPrice
+		totalCapitalPrice += it.TotalCapitalPrice
+		totalProfit += it.TotalProfit
+		totalQty += it.TotalQty
+		summaries = append(summaries, it)
+	}
+	summaries = append(summaries, model.Summary{
+		Date:              "Total",
+		TotalQty:          totalQty,
+		TotalPrice:        totalPrice,
+		TotalCapitalPrice: totalCapitalPrice,
+		TotalProfit:       totalProfit,
+	})
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Summary retrieved successfully",
+		Data:    summaries,
 	})
 }
