@@ -64,4 +64,10 @@ type Summary struct {
 	TotalPrice        float64 `json:"total_price"`
 	TotalCapitalPrice float64 `json:"total_capital_price"`
 	TotalProfit       float64 `json:"total_profit"`
+	TotalAdminFee     float64 `json:"total_admin_fee"`
+	TotalNetProfit    float64 `json:"total_net_profit"`
+}
+
+type Admin struct {
+	Admin string `json:"admin"`
 }

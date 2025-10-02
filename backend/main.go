@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -80,9 +81,11 @@ func main() {
 	}
 
 	_, err = db.Exec(`
-    CREATE TABLE IF NOT EXISTS size (
-        id_size INTEGER PRIMARY KEY AUTOINCREMENT,
-        size TEXT
+    CREATE TABLE IF NOT EXISTS master (
+        id_master INTEGER PRIMARY KEY AUTOINCREMENT,
+        master_code TEXT,
+		master_name TEXT,
+		created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`)
 	if err != nil {
 		log.Fatal(err)
@@ -143,7 +146,9 @@ func main() {
 	app.Post("/report", generateReport)
 
 	// Summary
-	app.Get("/summary", getSummary)
+	app.Get("/summary", listSummary) //summary?page=1&limit=20&date=2023-10-10
+	app.Put("/admin", editAdmin)
+	app.Post("/report/summary", printSummary)
 
 	log.Fatal(app.Listen(":3000"))
 }
@@ -197,10 +202,10 @@ func addProduct(c *fiber.Ctx) error {
 	}
 
 	res, err := db.Exec(`
-        INSERT INTO products (product_code, product_name, colour, size, stock, price, capital_price)
-        VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        INSERT INTO products (product_code, product_name, colour, size, stock, price, capital_price, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		product.ProductCode, product.ProductName, product.Colour,
-		product.Size, product.Stock, product.Price, product.CapitalPrice)
+		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), time.Now())
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -232,10 +237,10 @@ func editProduct(c *fiber.Ctx) error {
 	}
 
 	_, err := db.Exec(`
-        UPDATE products SET product_code=?, product_name=?, colour=?, size=?, stock=?, price=?, capital_price=?, updated_at=CURRENT_TIMESTAMP
+        UPDATE products SET product_code=?, product_name=?, colour=?, size=?, stock=?, price=?, capital_price=?, updated_at=?
         WHERE id_product = ?`,
 		product.ProductCode, product.ProductName, product.Colour,
-		product.Size, product.Stock, product.Price, product.CapitalPrice, id)
+		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -362,10 +367,10 @@ func addTransaction(c *fiber.Ctx) error {
 
 	// Insert transaksi
 	_, err = db.Exec(`
-        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee, total_price)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee, total_price, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee, totalPrice)
+		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee, totalPrice, time.Now())
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -375,7 +380,7 @@ func addTransaction(c *fiber.Ctx) error {
 	}
 
 	// Update stock produk
-	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", trx.Qty, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=? WHERE id_product = ?", trx.Qty, time.Now(), trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -528,7 +533,7 @@ func editTransaction(c *fiber.Ctx) error {
 	}
 
 	// Update stock produk
-	_, err = db.Exec("UPDATE products SET stock = stock + ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", qtyBefore, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock + ? , updated_at=? WHERE id_product = ?", qtyBefore, time.Now(), trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -537,7 +542,7 @@ func editTransaction(c *fiber.Ctx) error {
 		})
 	}
 
-	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?", trx.Qty, trx.IDProduct)
+	_, err = db.Exec("UPDATE products SET stock = stock - ? , updated_at=? WHERE id_product = ?", trx.Qty, time.Now(), trx.IDProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -642,7 +647,7 @@ func deleteProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
 
 	_, err := db.Exec(`
-        UPDATE products SET is_active=0 , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?`, id)
+        UPDATE products SET is_active=0 , updated_at=? WHERE id_product = ?`, time.Now(), id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -654,7 +659,7 @@ func deleteProduct(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Product delete successfully",
-		Data:    nil, // or return the updated product
+		Data:    nil,
 	})
 }
 
@@ -693,7 +698,7 @@ func deleteTransaction(c *fiber.Ctx) error {
 	stok = stok + qty
 
 	_, err = db.Exec(`
-        UPDATE products SET stock=? , updated_at=CURRENT_TIMESTAMP WHERE id_product = ?`, stok, idProduct)
+        UPDATE products SET stock=? , updated_at=? WHERE id_product = ?`, stok, time.Now(), idProduct)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -710,7 +715,7 @@ func deleteTransaction(c *fiber.Ctx) error {
 }
 
 func listSizes(c *fiber.Ctx) error {
-	rows, err := db.Query("SELECT id_size, size FROM size")
+	rows, err := db.Query("SELECT id_master, master_name FROM master WHERE master_code = 'SIZE' ORDER BY id_master ASC")
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1023,16 +1028,66 @@ func printProducts(c *fiber.Ctx) error {
 	})
 }
 
-func getSummary(c *fiber.Ctx) error {
+func listSummary(c *fiber.Ctx) error {
+	page := c.QueryInt("page", 1)
+	limit := c.QueryInt("limit", 10)
+	offset := (page - 1) * limit
+
+	dateFrom := c.Query("start_date")
+	dateTo := c.Query("end_date")
+
+	if dateFrom == "" || dateTo == "" {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "start_date and end_date are required",
+			Data:    nil,
+		})
+	}
+
+	var total int
+	err := db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM transactions t 
+		JOIN products p
+		ON t.id_product = p.id_product 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ?
+		GROUP by DATE(t.created_at)`, dateFrom, dateTo).Scan(&total)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	var admin string
+	err = db.QueryRow("SELECT master_name FROM master WHERE master_code = 'ADMIN'").Scan(&admin)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	adminFee, err := strconv.ParseFloat(admin, 64)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
 
 	rows, err := db.Query(`
-			SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
-			FROM transactions t 
-			JOIN products p
-			ON t.id_product = p.id_product 
-			group by DATE(t.created_at)
-			ORDER by DATE(t.created_at) ASC`)
-
+	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
+		FROM transactions t 
+		JOIN products p
+		ON t.id_product = p.id_product 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? 
+		GROUP by DATE(t.created_at)
+		ORDER by DATE(t.created_at) ASC
+		LIMIT ? OFFSET ?`, dateFrom, dateTo, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1042,11 +1097,11 @@ func getSummary(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	var summaries []model.Summary
-	totalPrice := 0.0
-	totalCapitalPrice := 0.0
-	totalProfit := 0.0
-	totalQty := 0
+	totalPriceSum := 0
+	totalProfitSum := 0
+	TotalNetProfit := 0
+
+	var trxs []model.Summary
 	for rows.Next() {
 		var it model.Summary
 		if err := rows.Scan(&it.Date, &it.TotalQty, &it.TotalPrice, &it.TotalCapitalPrice); err != nil {
@@ -1057,23 +1112,232 @@ func getSummary(c *fiber.Ctx) error {
 			})
 		}
 		it.TotalProfit = it.TotalPrice - it.TotalCapitalPrice
-		totalPrice += it.TotalPrice
-		totalCapitalPrice += it.TotalCapitalPrice
-		totalProfit += it.TotalProfit
-		totalQty += it.TotalQty
-		summaries = append(summaries, it)
+		it.TotalAdminFee = adminFee * float64(it.TotalQty) / 100
+		it.TotalNetProfit = it.TotalProfit - it.TotalAdminFee
+		trxs = append(trxs, it)
+
+		totalPriceSum += int(it.TotalPrice)
+		totalProfitSum += int(it.TotalProfit)
+		TotalNetProfit += int(it.TotalNetProfit)
 	}
-	summaries = append(summaries, model.Summary{
-		Date:              "Total",
-		TotalQty:          totalQty,
-		TotalPrice:        totalPrice,
-		TotalCapitalPrice: totalCapitalPrice,
-		TotalProfit:       totalProfit,
-	})
 
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
-		Message: "Summary retrieved successfully",
-		Data:    summaries,
+		Message: "Transactions retrieved successfully",
+		Data: fiber.Map{
+			"items":             trxs,
+			"total_price":       totalPriceSum,
+			"total_profit":      totalProfitSum,
+			"total_net_profit":  TotalNetProfit,
+			"admin_fee_percent": adminFee,
+			"total":             total,
+			"page":              page,
+			"limit":             limit,
+		},
+	})
+}
+
+func editAdmin(c *fiber.Ctx) error {
+	admin := new(model.Admin)
+	if err := c.BodyParser(admin); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	adminFee, err := strconv.ParseFloat(admin.Admin, 64)
+	if err != nil || adminFee < 0 || adminFee > 100 {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "Admin fee harus antara 0 sampai 100",
+			Data:    nil,
+		})
+	}
+
+	_, err = db.Exec("UPDATE master SET master_name = ? WHERE master_code = 'ADMIN'", admin.Admin)
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Admin updated successfully",
+		Data:    nil,
+	})
+}
+
+func printSummary(c *fiber.Ctx) error {
+	dateFrom := c.Query("start_date")
+	dateTo := c.Query("end_date")
+
+	if dateFrom == "" || dateTo == "" {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "start_date and end_date are required",
+			Data:    nil,
+		})
+	}
+
+	var total int
+	err := db.QueryRow(`
+		SELECT COUNT(*) 
+		FROM transactions t 
+		JOIN products p
+		ON t.id_product = p.id_product 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ?
+		GROUP by DATE(t.created_at)`, dateFrom, dateTo).Scan(&total)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	var admin string
+	err = db.QueryRow("SELECT master_name FROM master WHERE master_code = 'ADMIN'").Scan(&admin)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	adminFee, err := strconv.ParseFloat(admin, 64)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	rows, err := db.Query(`
+	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
+		FROM transactions t 
+		JOIN products p
+		ON t.id_product = p.id_product 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? 
+		GROUP by DATE(t.created_at)
+		ORDER by DATE(t.created_at) ASC`, dateFrom, dateTo)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	defer rows.Close()
+
+	var data [][]string
+	data = append(data, []string{"No", "Tanggal", "Omset", "Laba", "Qty", "Admin", "Laba Bersih"})
+
+	totalPriceSum := 0
+	totalProfitSum := 0
+	totalNetProfitSum := 0
+	totalQtySum := 0
+	totalAdminSum := 0
+	no := 1
+
+	for rows.Next() {
+		var it model.Summary
+		if err := rows.Scan(&it.Date, &it.TotalQty, &it.TotalPrice, &it.TotalCapitalPrice); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+				Data:    nil,
+			})
+		}
+		it.TotalProfit = it.TotalPrice - it.TotalCapitalPrice
+		it.TotalAdminFee = adminFee * float64(it.TotalProfit) / 100
+		it.TotalNetProfit = it.TotalProfit - it.TotalAdminFee
+
+		data = append(data, []string{
+			fmt.Sprintf("%d", no),
+			it.Date,
+			utils.FormatFloat(it.TotalPrice),
+			utils.FormatFloat(it.TotalProfit),
+			utils.FormatFloat(float64(it.TotalQty)),
+			utils.FormatFloat(it.TotalAdminFee),
+			utils.FormatFloat(it.TotalNetProfit),
+		})
+		no++
+		totalPriceSum += int(it.TotalPrice)
+		totalProfitSum += int(it.TotalProfit)
+		totalNetProfitSum += int(it.TotalNetProfit)
+		totalAdminSum += int(it.TotalAdminFee)
+		totalQtySum += it.TotalQty
+	}
+
+	pdf := gofpdf.New("L", "mm", "A4", "")
+	pdf.SetFont("Arial", "B", 12)
+	pdf.AddPage()
+	pdf.Cell(0, 10, fmt.Sprintf("Report Period: %s to %s", dateFrom, dateTo))
+	pdf.Ln(15)
+
+	// Generate PDF file
+	reportFolder := "./public/report"
+	if _, err := os.Stat(reportFolder); os.IsNotExist(err) {
+		if err := os.MkdirAll(reportFolder, os.ModePerm); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: "Failed to create report folder",
+				Data:    nil,
+			})
+		}
+	}
+
+	filename := fmt.Sprintf("%s/summary_%s_to_%s.pdf", reportFolder, dateFrom, dateTo)
+
+	colWidths := []float64{12, 30, 30, 30, 30, 30, 30}
+
+	// Add table header
+	for i, header := range data[0] {
+		pdf.CellFormat(colWidths[i], 10, header, "1", 0, "C", false, 0, "")
+	}
+
+	pdf.Ln(-1)
+
+	// Add table rows
+	pdf.SetFont("Arial", "", 10)
+	for _, row := range data[1:] {
+		for i, col := range row {
+			pdf.CellFormat(colWidths[i], 10, col, "1", 0, "C", false, 0, "")
+		}
+		pdf.Ln(-1)
+	}
+
+	totalLabelWidth := 12 + 30
+	totalValueWidth := 30.0
+
+	pdf.SetFont("Arial", "B", 12)
+	pdf.CellFormat(float64(totalLabelWidth), 10, "Total", "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalPriceSum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalProfitSum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalQtySum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalAdminSum)), "1", 0, "C", false, 0, "")
+	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalNetProfitSum)), "1", 0, "C", false, 0, "")
+	err = pdf.OutputFileAndClose(filename)
+	if err != nil {
+		fmt.Println(err.Error())
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: "Failed to create report file",
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Summary generated successfully",
+		Data:    fmt.Sprintf("http://%s/report/%s", c.Hostname(), filename[len(reportFolder)+1:]),
 	})
 }
