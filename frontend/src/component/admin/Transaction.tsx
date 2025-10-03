@@ -238,7 +238,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
                 </div>
             </div>
             <Table data={tableData} columns={transactionColumns} onPageChange={handlePageChange} handleChangeSizePerPage={handleChangeSizePerPage} />
-            <TransactionModal isOpen={isModalTrxOpen.isOpen} onClose={handleClose} transaction={selectedTrx} onSave={handleSaveTrx} action={isModalTrxOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterTrx.sizePerPage)} />
+            <TransactionModal isOpen={isModalTrxOpen.isOpen} onClose={handleClose} transaction={selectedTrx} onSave={handleSaveTrx} action={isModalTrxOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date)} />
         </div>
     );
 }

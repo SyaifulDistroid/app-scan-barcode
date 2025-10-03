@@ -824,3 +824,143 @@ export function PrintProductModal({ isOpen, onClose, product: selectedProduct, o
     </div>
   );
 }
+
+export function EditAdminFeeModal({ isOpen, onClose, existingAdmin, onSave, callFetchAfterUpdate }) {
+  const [formData, setFormData] = useState({
+    admin: 0,
+  })
+
+  useEffect(() => {
+    if (existingAdmin) {
+      setFormData({ admin: existingAdmin })
+    }
+  }, [existingAdmin])
+
+  const resetFormData = () => {
+    setFormData({
+      admin: 0,
+    })
+  }
+
+  const handleCancel = () => {
+    resetFormData()
+    onClose()
+  }
+
+  const handleSubmitForm = async (e) => {
+    e.preventDefault()
+
+    Swal.fire({
+      title: "Loading...",
+      text: "Harap Menunggu",
+      icon: "info",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+    });
+
+    if (formData.admin <= 0) {
+      Swal.fire({
+        title: "Perhatikan",
+        text: "Admin fee tidak bisa 0 atau di bawahnya",
+        icon: "info",
+      });
+
+      return
+    }
+
+    try {
+      let payload = formData
+
+      payload.admin = payload.admin.toString()
+
+      const response = await fetch(`${baseUrlAPI}/admin/`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status != 200 && response.status !== 201) {
+        Swal.fire({
+          title: "Error",
+          text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+          icon: "error",
+        });
+        return
+      }
+
+      Swal.fire({
+        title: "Sukses",
+        text: `Berhasil Update Admin Fee`,
+        icon: "success",
+      });
+
+      if (callFetchAfterUpdate) {
+        callFetchAfterUpdate()
+      }
+      onClose()
+      resetFormData()
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+        icon: "error",
+      });
+      resetFormData()
+    }
+  };
+
+  const handleChangeField = (e) => {
+    const { name, value } = e.target
+
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }))
+  }
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
+      <div className='bg-white overflow-auto p-8 rounded-2xl shadow-lg w-full max-h-10/12 max-w-lg flex flex-col gap-6'>
+        <span className='font-bold text-2xl text-amber-800 text-center'>Edit Admin Fee</span>
+        <form onSubmit={handleSubmitForm} className='flex flex-col gap-4'>
+          <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>Admin Fee</label>
+            <input
+              type='number'
+              name='admin'
+              defaultValue={formData.admin || existingAdmin || "0"}
+              onChange={handleChangeField}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+            />
+          </div>
+
+          <div className='flex justify-end gap-3 mt-4'>
+            <button
+              type='button'
+              onClick={handleCancel}
+              className='px-6 py-3 rounded-full font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-200 ease-in'
+            >
+              Batal
+            </button>
+            <button
+              type='submit'
+              className='px-6 py-3 rounded-full font-bold text-white bg-orange-400 hover:bg-orange-500 transition duration-200 ease-in shadow-md'
+            >
+              Simpan
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    
+  );
+}

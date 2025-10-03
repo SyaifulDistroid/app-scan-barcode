@@ -367,10 +367,10 @@ func addTransaction(c *fiber.Ctx) error {
 
 	// Insert transaksi
 	_, err = db.Exec(`
-        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee, total_price, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        INSERT INTO transactions (id_product, product_code, product_name, colour, size, qty, discount, remark, admin_fee, total_price)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		trx.IDProduct, trx.ProductCode, trx.ProductName, trx.Colour,
-		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee, totalPrice, time.Now())
+		trx.Size, trx.Qty, trx.Discount, trx.Remark, trx.AdminFee, totalPrice)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,

@@ -5,6 +5,7 @@ import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { RoleContext } from "../../App";
 import ProductPage from "../../component/admin/Product";
 import TransactionPage from "../../component/admin/Transaction";
+import SummaryPage from "../../component/admin/Summary";
 
 export default function AdminPage() {
   const role = useContext(RoleContext);
@@ -32,9 +33,26 @@ export default function AdminPage() {
     });
   };
 
+  const getFirstDay = () => {
+      let date = new Date().toISOString().split("T")[0]
+      date = date.split("-")
+      date[2] = "01"
+      return date.join("-")
+  }
+
   const fetchTableData = async (selectedTab, page = 1, limit = 10, option = null, start_date = new Date().toISOString().split("T")[0], end_date = new Date().toISOString().split("T")[0], keyword = "") => {
     
     let queryparam = `page=${page}&limit=${limit}`
+
+    if(selectedTab == "summary") {
+      start_date = getFirstDay()
+    }
+
+    const urlTab = {
+      product: "products",
+      transaction: "transactions",
+      summary: "summary"
+    }
 
     if (selectedTab != "product"){
       queryparam += `&start_date=${start_date}&end_date=${end_date}`
@@ -44,7 +62,7 @@ export default function AdminPage() {
       }
     }
 
-    const url = `${baseUrlAPI}/${selectedTab === "product" ? "products" : "transactions"}?${queryparam}`;
+    const url = `${baseUrlAPI}/${urlTab[selectedTab]}?${queryparam}`;
 
     try {
       const response = await fetch(url, {
@@ -68,7 +86,16 @@ export default function AdminPage() {
       let data = result.data;
       if (data.items === null) {
         data.items = [];
+      } else {
+        if(selectedTab == "summary") {
+          function getMonth(){
+            const formatter = new Intl.DateTimeFormat('id', { month: 'long' });
+            return formatter.format(new Date());
+          }
+          data.selectedMonth = getMonth()
+        }
       }
+
 
       if (!option?.forMaster) {
         setTableData(data);
@@ -88,11 +115,21 @@ export default function AdminPage() {
       });
     }
   };
+  
 
-  const tabMenuList = [
-    { value: "product", label: "Manajemen Produk", component: <ProductPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} /> },
-    { value: "transaction", label: "Manajemen Transaksi", component: <TransactionPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
+  const tabMenuListMaster = [
+    { value: "product", label: "Produk", component: <ProductPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} /> },
+    { value: "transaction", label: "Transaksi", component: <TransactionPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
+    { value: "summary", label: "Summary", component: <SummaryPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
   ];
+
+  // const [tabMenuList, setTabMenuList] = useState([{}])
+  const tabMenuList = tabMenuListMaster.slice(0, role === "owner" ? tabMenuListMaster.length : tabMenuListMaster.length - 1)
+
+
+  // useEffect(() => {
+  //     setTabMenuList(tabMenuListMaster.slice(0, role === "owner" ? tabMenuListMaster.length : tabMenuListMaster.length - 1));
+  // }, [role]);
 
   const handleChangeTab = (destination) => {
     navigate(`/admin?tab=${destination}`);
