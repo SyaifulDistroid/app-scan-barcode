@@ -1046,12 +1046,15 @@ func listSummary(c *fiber.Ctx) error {
 
 	var total int
 	err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM transactions t 
-		JOIN products p
-		ON t.id_product = p.id_product 
-		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ?
-		GROUP by DATE(t.created_at)`, dateFrom, dateTo).Scan(&total)
+		SELECT COUNT(*) AS jumlah_hari
+		FROM (
+			SELECT COUNT(*) AS total_transaksi
+			FROM transactions t
+			JOIN products p ON t.id_product = p.id_product 
+			WHERE t.is_active = 1 
+			AND DATE(t.created_at) BETWEEN ? AND ?
+			GROUP BY DATE(t.created_at)
+		) AS daily_count;`, dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1078,7 +1081,7 @@ func listSummary(c *fiber.Ctx) error {
 			Data:    nil,
 		})
 	}
-
+	
 	rows, err := db.Query(`
 	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
 		FROM transactions t 
