@@ -170,12 +170,7 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
 
     return (
         <div className="w-full flex flex-col gap-10 mx-auto ease-in duration-150">
-            <div className="text-center flex flex-col gap-5">
-                <div className="flex flex-col">
-                    <span className="text-2xl font-bold text-gray-900">Summary Laporan Penjualan Supplier Ocik Gallery</span>
-                    <span className="text-xl text-gray-700">BULAN {tableData?.selectedMonth?.toUpperCase()} 2025</span>
-                    <span className="text-xl text-gray-700">Potongan {tableData.admin_fee_percent}%</span>
-                </div>
+            <div className="text-center flex flex-col gap-5">    
                 <div className="flex justify-center">
                     <div className="flex md:flex-row justify-center flex-col gap-5 w-4/5">
                         <div className="flex w-full max-w-sm bg-white flex-col p-5 gap-2 rounded-2xl shadow-lg">

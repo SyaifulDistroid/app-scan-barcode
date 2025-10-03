@@ -40,13 +40,17 @@ export default function AdminPage() {
       return date.join("-")
   }
 
-  const fetchTableData = async (selectedTab, page = 1, limit = 10, option = null, start_date = new Date().toISOString().split("T")[0], end_date = new Date().toISOString().split("T")[0], keyword = "") => {
-    
+  const getDefaultStartDate = () => {
+    if(selectedTab == "summary") {
+      return getFirstDay()
+    } else {
+      return new Date().toISOString().split("T")[0]
+    }
+  }
+
+  const fetchTableData = async (selectedTab, page = 1, limit = 10, option = null, start_date = getDefaultStartDate(), end_date = new Date().toISOString().split("T")[0], keyword = "") => {    
     let queryparam = `page=${page}&limit=${limit}`
 
-    if(selectedTab == "summary") {
-      start_date = getFirstDay()
-    }
 
     const urlTab = {
       product: "products",
