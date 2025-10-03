@@ -3,6 +3,7 @@ import Table from "../../component/table";
 import { ProductModal, PrintProductModal } from "../../pages/admin/Modal";
 import Swal from "sweetalert2";
 import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
+import { formatRupiah } from "../../utils/utils";
 
 export default function ProductPage({ selectedTab, tableData, setTableData, fetchTableData }) {
   
@@ -103,23 +104,13 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
       header: "Harga",
       key: "price",
       render: (item) =>
-        new Intl.NumberFormat("id-ID", {
-          style: "currency",
-          currency: "IDR",
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        }).format(item.price || 0),
+        formatRupiah(item.price),
     },
     {
       header: "HPP",
       key: "capital_price",
       render: (item) =>
-        new Intl.NumberFormat("id-ID", {
-          style: "currency",
-          currency: "IDR",
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0,
-        }).format(item.capital_price || 0),
+        formatRupiah(item.capital_price),
     },
     {
       header: "Action",

@@ -3,6 +3,7 @@ import Table from "../../component/table";
 import Swal from "sweetalert2";
 import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { TransactionModal } from "../../pages/admin/Modal";
+import { formatRupiah } from "../../utils/utils";
 
 export default function TransactionPage({ selectedTab, tableData, setTableData, fetchTableData, role }) {
     const [isModalTrxOpen, setIsModalTrxOpen] = useState({ isOpen: false, action: "" });
@@ -147,35 +148,20 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
             header: "Diskon",
             key: "discount",
             render: (item) =>
-                new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                }).format(item.discount || 0),
+                formatRupiah(item.discount)
         },
         {
             header: "Admin",
             key: "admin_fee",
             render: (item) =>
-                new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                }).format(item.admin_fee || 0),
+                formatRupiah(item.admin_fee)
         },
         { header: "Keterangan", key: "remark" },
         {
             header: "Total Harga",
             key: "total_price",
             render: (item) =>
-                new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    minimumFractionDigits: 0,
-                    maximumFractionDigits: 0,
-                }).format(item.total_price || 0),
+                formatRupiah(item.total_price)
         },
         {
             header: "Action",

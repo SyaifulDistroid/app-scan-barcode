@@ -3,6 +3,7 @@ import Table from "../../component/table";
 import Swal from "sweetalert2";
 import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { EditAdminFeeModal, TransactionModal } from "../../pages/admin/Modal";
+import { formatRupiah } from "../../utils/utils";
 
 export default function SummaryPage({ selectedTab, tableData, setTableData, fetchTableData, role }) {
     const [isModalAdminFeeOpen, setIsModalAdminFeeOpen] = useState({ isOpen: false });
@@ -97,23 +98,30 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
 
     const masterColumnsTransaction = [
         { header: "Tanggal", key: "date" },
-        { header: "Omset", key: "total_price" },
+        {   header: "Omset", 
+            key: "total_price",
+            render: (item) =>
+            formatRupiah(item.total_price)
+        },
         {   header: "Harga Modal", 
             key: "total_capital_price",
             render: (item) =>
-            new Intl.NumberFormat("id-ID", {
-                style: "currency",
-                currency: "IDR",
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 0,
-            }).format(item.total_capital_price || 0),
+            formatRupiah(item.total_capital_price)
         },
         // { header: "Shopee Live", key: "colour" }, 
         // { header: "Shopee Live (-)", key: "size" },
         // { header: "Offline", key: "qty" },
-        { header: "Laba", key: "total_profit" },
+        {   header: "Laba", 
+            key: "total_profit",
+            render: (item) =>
+            formatRupiah(item.total_profit)
+        },
         { header: "PCS", key: "total_qty" },
-        { header: `Laba Bersih | 19%`, key: "total_net_profit" },
+        {   header: `Laba Bersih | 19%`, 
+            key: "total_net_profit",
+            render: (item) =>
+            formatRupiah(item.total_net_profit)
+        },
         // {
         //     header: "Diskon",
         //     key: "discount",
@@ -175,15 +183,15 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
                     <div className="flex md:flex-row justify-center flex-col gap-5 w-4/5">
                         <div className="flex w-full max-w-sm bg-white flex-col p-5 gap-2 rounded-2xl shadow-lg">
                             <span className="px-5 text-2xl font-bold text-orange-500">Omset</span>
-                            <span className="px-5 text-xl font-medium text-gray-900">{tableData.total_price}</span>
+                            <span className="px-5 text-xl font-medium text-gray-900">{formatRupiah(tableData.total_price)}</span>
                         </div>
                         <div className="flex w-full max-w-sm bg-white flex-col p-5 gap-2 rounded-2xl shadow-lg">
                             <span className="px-5 text-2xl font-bold text-orange-500">Laba</span>
-                            <span className="px-5 text-xl font-medium text-gray-900">{tableData.total_profit}</span>
+                            <span className="px-5 text-xl font-medium text-gray-900">{formatRupiah(tableData.total_profit)}</span>
                         </div>
                         <div className="flex w-full max-w-sm bg-white flex-col p-5 gap-2 rounded-2xl shadow-lg">
                             <span className="px-5 text-2xl font-bold text-orange-500">Laba Bersih</span>
-                            <span className="px-5 text-xl font-medium text-gray-900">{tableData.total_net_profit}</span>
+                            <span className="px-5 text-xl font-medium text-gray-900">{formatRupiah(tableData.total_net_profit)}</span>
                         </div>
                     </div>
                 </div>
