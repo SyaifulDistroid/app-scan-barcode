@@ -122,7 +122,7 @@ export default function AdminPage() {
   
 
   const tabMenuListMaster = [
-    { value: "product", label: "Produk", component: <ProductPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} /> },
+    { value: "product", label: "Produk", component: <ProductPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
     { value: "transaction", label: "Transaksi", component: <TransactionPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
     { value: "summary", label: "Summary", component: <SummaryPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
   ];

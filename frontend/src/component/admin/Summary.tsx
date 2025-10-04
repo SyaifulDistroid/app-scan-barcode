@@ -19,7 +19,7 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
     const [filterSummary, setFilterSummary] = useState({
         start_date: getFirstDay(),
         end_date: new Date().toISOString().split("T")[0],
-        sizePerPage: 10,
+        sizePerPage: 500,
     });
 
     const handlePageChange = (newPage) => {

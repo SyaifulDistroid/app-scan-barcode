@@ -631,7 +631,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
             />
           </div>
 
-          <div className='flex flex-col gap-2'>
+          {/* <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Biaya Admin</label>
             <input
               type='number'
@@ -641,7 +641,7 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               required
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
-          </div>
+          </div> */}
 
           {/* <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Total Harga</label>

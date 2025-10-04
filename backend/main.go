@@ -1081,7 +1081,7 @@ func listSummary(c *fiber.Ctx) error {
 			Data:    nil,
 		})
 	}
-	
+
 	rows, err := db.Query(`
 	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
 		FROM transactions t 
@@ -1115,8 +1115,7 @@ func listSummary(c *fiber.Ctx) error {
 			})
 		}
 		it.TotalProfit = it.TotalPrice - it.TotalCapitalPrice
-		it.TotalAdminFee = adminFee * float64(it.TotalQty) / 100
-		it.TotalNetProfit = it.TotalProfit - it.TotalAdminFee
+		it.TotalNetProfit = it.TotalPrice - (adminFee * float64(it.TotalPrice) / 100) - it.TotalCapitalPrice
 		trxs = append(trxs, it)
 
 		totalPriceSum += int(it.TotalPrice)

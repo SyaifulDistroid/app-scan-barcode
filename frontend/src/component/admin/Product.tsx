@@ -5,7 +5,7 @@ import Swal from "sweetalert2";
 import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { formatRupiah } from "../../utils/utils";
 
-export default function ProductPage({ selectedTab, tableData, setTableData, fetchTableData }) {
+export default function ProductPage({ selectedTab, tableData, setTableData, fetchTableData, role}) {
   
   const [isModalProductOpen, setIsModalProductOpen] = useState({ isOpen: false, action: "" });
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -150,7 +150,11 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
   };
 
   useEffect(() => {
+     if (role === "owner") {
     setProductColumns(masterProductColumns);
+    } else {
+      setProductColumns(masterProductColumns.filter(col => col.key !== "capital_price"));
+    }
   }, []);
 
   const handlePrintReport = async (e) => {
