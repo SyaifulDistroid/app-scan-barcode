@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Table from "../../component/table";
-import { ProductModal, PrintProductModal } from "../../pages/admin/Modal";
+import { ProductModal, PrintProductModal, EditAdminFeeModal, EditHPPModal } from "../../pages/admin/Modal";
 import Swal from "sweetalert2";
 import { baseUrlAPI, headersAllowNgrok } from "../../utils/constant";
 import { formatRupiah } from "../../utils/utils";
@@ -10,6 +10,7 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
   const [isModalProductOpen, setIsModalProductOpen] = useState({ isOpen: false, action: "" });
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [isModalPrintProductOpen, setIsModalPrintProductOpen] = useState({ isOpen: false });
+  const [isModalEditHPPOpen, setIsModalEditHPPOpen] = useState({ isOpen: false });
 
   const [filterProduct, setFilterProduct] = useState({
       sizePerPage: 10,
@@ -32,12 +33,18 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
     setIsModalProductOpen({ isOpen: true, action: "EDIT" });
   };
 
+  const handleClickEditHPP = () => {
+    setIsModalEditHPPOpen({ action: "ADD", isOpen: true });
+  };
+
   const handleClose = () => {
     setSelectedProduct(null);
     if (isModalPrintProductOpen.isOpen) {
       setIsModalPrintProductOpen({ isOpen: false });
     } else if (isModalProductOpen.isOpen) {
       setIsModalProductOpen({ isOpen: false, action: "" });
+    } else if (isModalEditHPPOpen.isOpen) {
+      setIsModalEditHPPOpen({ isOpen: false });
     }
   };
 
@@ -99,6 +106,7 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
     { header: "Nama Produk", key: "product_name" },
     { header: "Warna", key: "colour" },
     { header: "Ukuran", key: "size" },
+    { header: "Kategori", key: "category" },
     { header: "Stok", key: "stock" },
     {
       header: "Harga",
@@ -229,11 +237,19 @@ export default function ProductPage({ selectedTab, tableData, setTableData, fetc
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                 </svg>
             </button>
+            {role === "owner" && (
+              <button onClick={handleClickEditHPP} className="w-full hover:bg-orange-500 duration-100 ease-in max-w-fit font-bold text-2xl text-white text-center bg-orange-400 px-5 py-3 rounded-full shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24px" height="24px">
+                  <path d="M3 17.25V21h3.75L18.75 9.75l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                </svg>
+              </button>
+            )}
         </div>
       </div>
       <Table data={tableData} columns={productColumns} onPageChange={handlePageChange} handleChangeSizePerPage={handleChangeSizePerPage} />
       <PrintProductModal isOpen={isModalPrintProductOpen.isOpen} onClose={handleClose} product={selectedProduct} onSave={handleSaveProduct} />
       <ProductModal isOpen={isModalProductOpen.isOpen} onClose={handleClose} product={selectedProduct} onSave={handleSaveProduct} action={isModalProductOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterProduct.sizePerPage, null, null, null, filterProduct.keyword)} />
+      <EditHPPModal isOpen={isModalEditHPPOpen.isOpen} onClose={handleClose} onSave={handleSaveProduct} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterProduct.sizePerPage, null, null, null, filterProduct.keyword)}  />
     </div>
   );
 }

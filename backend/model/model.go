@@ -4,6 +4,7 @@ type Product struct {
 	IDProduct    int     `json:"id_product"`
 	ProductCode  string  `json:"product_code"`
 	ProductName  string  `json:"product_name"`
+	Category     string  `json:"category"`
 	Colour       string  `json:"colour"`
 	Size         string  `json:"size"`
 	Stock        int     `json:"stock"`
@@ -40,9 +41,12 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-type Size struct {
-	ID   int    `json:"id_size"`
-	Size string `json:"size"`
+type Master struct {
+	IDMaster   int    `json:"id_master"`
+	MasterCode string `json:"master_code"`
+	MasterName string `json:"master_name"`
+	CreatedAt  string `json:"-"`
+	UpdatedAt  string `json:"-"`
 }
 
 type Report struct {
@@ -70,4 +74,9 @@ type Summary struct {
 
 type Admin struct {
 	Admin string `json:"admin"`
+}
+
+type HPP struct {
+	ProductName string `json:"product_name"`
+	HPP string `json:"hpp"`
 }

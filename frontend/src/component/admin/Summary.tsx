@@ -8,6 +8,7 @@ import { formatRupiah } from "../../utils/utils";
 export default function SummaryPage({ selectedTab, tableData, setTableData, fetchTableData, role }) {
     const [isModalAdminFeeOpen, setIsModalAdminFeeOpen] = useState({ isOpen: false });
     const [selectedTrx, setSelectedTrx] = useState(null);
+    const [masterCategory, setMasterCategory] = useState([]);
 
     const getFirstDay = () => {
         let date = new Date().toISOString().split("T")[0]
@@ -20,18 +21,42 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
         start_date: getFirstDay(),
         end_date: new Date().toISOString().split("T")[0],
         sizePerPage: 500,
+        keyword: "",
     });
 
     const handlePageChange = (newPage) => {
         if (newPage > 0 && newPage <= Math.ceil(tableData.total / tableData.limit)) {
-            fetchTableData(selectedTab, newPage, filterSummary.sizePerPage, null, filterSummary.start_date, filterSummary.end_date);
+            fetchTableData(selectedTab, newPage, filterSummary.sizePerPage, null, filterSummary.start_date, filterSummary.end_date, filterSummary.keyword);
         }
     };
 
     const handleChangeSizePerPage = (sizePerPage) => {
         setFilterSummary((prevState) => ({...prevState, sizePerPage: sizePerPage}))
-        fetchTableData(selectedTab, 1, sizePerPage, null, filterSummary.start_date, filterSummary.end_date);
+        fetchTableData(selectedTab, 1, sizePerPage, null, filterSummary.start_date, filterSummary.end_date, filterSummary.keyword);
     }
+
+    const fetchMasterCategory = async () => {
+    try {
+        const response = await fetch(`${baseUrlAPI}/masters/category`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            ...headersAllowNgrok()
+        },
+        });
+        if (response.status !== 200 && response.status !== 201) return;
+        const result = await response.json();
+        let data = result.data;
+        if (!Array.isArray(data)) data = [];
+        const options = data.map((item) => ({
+        label: item.master_name,
+        value: item.master_name,
+        }));
+        setMasterCategory(options);
+    } catch (error) {
+        // handle error
+    }
+    };
 
     const handleClose = () => {
         setIsModalAdminFeeOpen({ isOpen: false, action: "" });
@@ -59,7 +84,7 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
         });
     
         try {    
-          const response = await fetch(`${baseUrlAPI}/report/summary?start_date=${filterSummary.start_date}&end_date=${filterSummary.end_date}`, {
+          const response = await fetch(`${baseUrlAPI}/report/summary?start_date=${filterSummary.start_date}&end_date=${filterSummary.end_date}&category=${filterSummary.keyword}`, {
             method: "POST",
             headers: {
               'Content-Type': 'application/json',
@@ -122,37 +147,6 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
             render: (item) =>
             formatRupiah(item.total_net_profit)
         },
-        // {
-        //     header: "Diskon",
-        //     key: "discount",
-        //     render: (item) =>
-        //         new Intl.NumberFormat("id-ID", {
-        //             style: "currency",
-        //             currency: "IDR",
-        //             minimumFractionDigits: 0,
-        //             maximumFractionDigits: 0,
-        //         }).format(item.discount || 0),
-        // },
-        // {
-        //     header: "Action",
-        //     key: "actions",
-        //     render: (item) => (
-        //         <div className="w-full flex justify-center gap-2">
-        //             <button className="p-2 rounded-full bg-blue-500 text-white shadow-md hover:bg-blue-600 transition" title="Edit" onClick={() => handleEditTransactionClick(item)}>
-        //                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        //                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-        //                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-        //                 </svg>
-        //             </button>
-        //             <button className="p-2 rounded-full bg-red-500 text-white shadow-md hover:bg-red-600 transition" title="Delete" onClick={() => handleDeleteTransaction(item)}>
-        //                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        //                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6h18"></path>
-        //                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-        //                 </svg>
-        //             </button>
-        //         </div>
-        //     ),
-        // },
     ];
 
     const [transactionColumns, setTransactionColumns] = useState([]);
@@ -165,11 +159,12 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
 
     const handleClickFilter = (e) => {
         e.preventDefault()
-        fetchTableData(selectedTab, 1, filterSummary.sizePerPage, null, filterSummary.start_date, filterSummary.end_date);
+        fetchTableData(selectedTab, 1, filterSummary.sizePerPage, null, filterSummary.start_date, filterSummary.end_date, filterSummary.keyword);
     };
 
     useEffect(() => {
-        setTransactionColumns(masterColumnsTransaction.slice(0, role === "owner" ? masterColumnsTransaction.length : masterColumnsTransaction.length - 1));
+        setTransactionColumns(masterColumnsTransaction.slice(0, role === "owner" ? masterColumnsTransaction.length : masterColumnsTransaction.length - 1));        
+        fetchMasterCategory();
     }, [role]);
 
     useEffect(() => {
@@ -193,6 +188,10 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
                             <span className="px-5 text-2xl font-bold text-orange-500">Laba Bersih</span>
                             <span className="px-5 text-xl font-medium text-gray-900">{formatRupiah(tableData.total_net_profit)}</span>
                         </div>
+                        <div className="flex w-full max-w-sm bg-white flex-col p-5 gap-2 rounded-2xl shadow-lg">
+                            <span className="px-5 text-2xl font-bold text-orange-500">Total Pcs</span>
+                            <span className="px-5 text-xl font-medium text-gray-900">{tableData.total_qty_sum}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -201,7 +200,24 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
                     <div className="font-bold flex flex-col md:flex-row items-center gap-2 md:gap-4 text-gray-800">
                         <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterSummary.start_date} onChange={(e) => setFilterSummary((prevState) => ({ ...prevState, start_date: e.target.value }))} name="start_date" type="date" id="dateInput" />
                         <span>S/D</span>
-                        <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterSummary.end_date} onChange={(e) => setFilterSummary((prevState) => ({ ...prevState, end_date: e.target.value }))} name="end_date" type="date" id="dateInput" />
+                        <input
+                            className="bg-white border-gray-400 border-2 p-2 rounded-2xl"
+                            value={filterSummary.end_date}
+                            onChange={(e) => setFilterSummary((prevState) => ({ ...prevState, end_date: e.target.value }))}
+                            name="end_date"
+                            type="date"
+                            id="dateInput"
+                        />
+                        <select
+                        className="bg-white border-gray-400 border-2 p-2 rounded-2xl"
+                        value={filterSummary.keyword}
+                        onChange={(e) => setFilterSummary((prevState) => ({ ...prevState, keyword: e.target.value }))}
+                        name="Category"
+                        >
+                        {masterCategory.map((cat) => (
+                            <option key={cat.value} value={cat.value}>{cat.label}</option>
+                        ))}
+                        </select>
                         <button type="submit" className="w-full flex gap-2 duration-100 ease-in max-w-fit font-bold text-white hover:bg-orange-500 text-center bg-orange-400 px-5 py-2 rounded-full shadow-md">
                             <span>Filter</span>
                         </button>
@@ -224,7 +240,7 @@ export default function SummaryPage({ selectedTab, tableData, setTableData, fetc
             <Table data={tableData} columns={transactionColumns} onPageChange={handlePageChange} handleChangeSizePerPage={handleChangeSizePerPage} />
             {
                 isModalAdminFeeOpen.isOpen &&
-                    <EditAdminFeeModal isOpen={isModalAdminFeeOpen.isOpen} onClose={handleClose} existingAdmin={tableData.admin_fee_percent} onSave={handleSaveAdminFee} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterSummary.sizePerPage)} />
+                    <EditAdminFeeModal isOpen={isModalAdminFeeOpen.isOpen} onClose={handleClose} existingAdmin={tableData.admin_fee_percent} onSave={handleSaveAdminFee} callFetchAfterUpdate={() => fetchTableData(selectedTab,  1,  filterSummary.sizePerPage,  null,  filterSummary.start_date,  filterSummary.end_date, filterSummary.keyword)} />
             }
         </div>
     );

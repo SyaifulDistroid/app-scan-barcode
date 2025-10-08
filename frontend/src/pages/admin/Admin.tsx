@@ -20,10 +20,6 @@ export default function AdminPage() {
     total: 0,
   });
 
-  // const [masterProductData, setMasterProductData] = useState({
-  //   items: [],
-  // });
-
   const resetTableData = () => {
     setTableData({
       items: [],
@@ -58,12 +54,12 @@ export default function AdminPage() {
       summary: "summary"
     }
 
-    if (selectedTab != "product"){
-      queryparam += `&start_date=${start_date}&end_date=${end_date}`
-    } else {    
-      if (keyword != "") {
+    if (selectedTab == "summary"){
+      queryparam += `&start_date=${start_date}&end_date=${end_date}&category=${keyword}`
+    } if (selectedTab == "transaction"){
+      queryparam += `&start_date=${start_date}&end_date=${end_date}&search=${keyword}`    
+    }else if (selectedTab == "products") {
         queryparam += `&search=${keyword}`
-      }
     }
 
     const url = `${baseUrlAPI}/${urlTab[selectedTab]}?${queryparam}`;
@@ -104,12 +100,7 @@ export default function AdminPage() {
       if (!option?.forMaster) {
         setTableData(data);
       } else {
-        // const options = data.items.map((product, index) => ({
-        //   label: product.product_name,
-        //   value: product.id_product,
-        //   detail: JSON.stringify({ ...data.items[index] }),
-        // }));
-        // setMasterProductData(options);
+        
       }
     } catch (error) {
       Swal.fire({
@@ -127,13 +118,8 @@ export default function AdminPage() {
     { value: "summary", label: "Summary", component: <SummaryPage selectedTab={selectedTab} tableData={tableData} setTableData={setTableData} fetchTableData={fetchTableData} role={role} /> },
   ];
 
-  // const [tabMenuList, setTabMenuList] = useState([{}])
   const tabMenuList = tabMenuListMaster.slice(0, role === "owner" ? tabMenuListMaster.length : tabMenuListMaster.length - 1)
 
-
-  // useEffect(() => {
-  //     setTabMenuList(tabMenuListMaster.slice(0, role === "owner" ? tabMenuListMaster.length : tabMenuListMaster.length - 1));
-  // }, [role]);
 
   const handleChangeTab = (destination) => {
     navigate(`/admin?tab=${destination}`);

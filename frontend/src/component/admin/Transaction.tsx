@@ -13,17 +13,18 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
         start_date: new Date().toISOString().split("T")[0],
         end_date: new Date().toISOString().split("T")[0],
         sizePerPage: 10,
+        keyword: '',
     });
 
     const handlePageChange = (newPage) => {
         if (newPage > 0 && newPage <= Math.ceil(tableData.total / tableData.limit)) {
-            fetchTableData(selectedTab, newPage, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date);
+            fetchTableData(selectedTab, newPage, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date, filterTrx.keyword);
         }
     };
 
     const handleChangeSizePerPage = (sizePerPage) => {
         setFilterTrx((prevState) => ({...prevState, sizePerPage: sizePerPage}))
-        fetchTableData(selectedTab, 1, sizePerPage, null, filterTrx.start_date, filterTrx.end_date);
+        fetchTableData(selectedTab, 1, sizePerPage, null, filterTrx.start_date, filterTrx.end_date, filterTrx.keyword);
     }
 
     const handleEditTransactionClick = (trx) => {
@@ -78,7 +79,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
                         text: "Berhasil Menghapus Data",
                         icon: "success",
                     });
-                    fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date);
+                    fetchTableData(selectedTab, tableData.page, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date, filterTrx.keyword);
                 }
             });
         } catch (error) {
@@ -150,12 +151,6 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
             render: (item) =>
                 formatRupiah(item.discount)
         },
-        {
-            header: "Admin",
-            key: "admin_fee",
-            render: (item) =>
-                formatRupiah(item.admin_fee)
-        },
         { header: "Keterangan", key: "remark" },
         {
             header: "Total Harga",
@@ -189,7 +184,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
 
     const handleClickFilter = (e) => {
         e.preventDefault()
-        fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date);
+        fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date, filterTrx.keyword);
     };
 
     useEffect(() => {
@@ -204,6 +199,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
                         <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterTrx.start_date} onChange={(e) => setFilterTrx((prevState) => ({ ...prevState, start_date: e.target.value }))} name="start_date" type="date" id="dateInput" />
                         <span>S/D</span>
                         <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterTrx.end_date} onChange={(e) => setFilterTrx((prevState) => ({ ...prevState, end_date: e.target.value }))} name="end_date" type="date" id="dateInput" />
+                        <input className="bg-white border-gray-400 border-2 p-2 rounded-2xl" value={filterTrx.keyword} onChange={(e) => setFilterTrx((prevState) => ({ ...prevState, keyword: e.target.value }))} name="keyword" maxLength={25} placeholder="Search:" type="text"  />
                         <button type="submit" className="w-full flex gap-2 duration-100 ease-in max-w-fit font-bold text-white hover:bg-orange-500 text-center bg-orange-400 px-5 py-2 rounded-full shadow-md">
                             <span>Filter</span>
                         </button>
@@ -224,7 +220,7 @@ export default function TransactionPage({ selectedTab, tableData, setTableData, 
                 </div>
             </div>
             <Table data={tableData} columns={transactionColumns} onPageChange={handlePageChange} handleChangeSizePerPage={handleChangeSizePerPage} />
-            <TransactionModal isOpen={isModalTrxOpen.isOpen} onClose={handleClose} transaction={selectedTrx} onSave={handleSaveTrx} action={isModalTrxOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date)} />
+            <TransactionModal isOpen={isModalTrxOpen.isOpen} onClose={handleClose} transaction={selectedTrx} onSave={handleSaveTrx} action={isModalTrxOpen.action} callFetchAfterUpdate={() => fetchTableData(selectedTab, 1, filterTrx.sizePerPage, null, filterTrx.start_date, filterTrx.end_date,filterTrx.keyword)} />
         </div>
     );
 }

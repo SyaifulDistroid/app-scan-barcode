@@ -5,18 +5,22 @@ import Select from 'react-select';
 
 
 export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, action, callFetchAfterUpdate }) {
+  // Ambil role dari localStorage, bisa diganti sesuai kebutuhan
+  const role = localStorage.getItem('role');
+  const isOwner = role === 'owner';
   if (!isOpen) {
     return null;
   }
 
-  const [selectedMasterSize, setSelectedMasterSize] = useState({})
-  const [masterDataSize, setMasterDataSize] = useState([])
+  const [selectedMaster, setSelectedMaster] = useState({ size: {}, category: {} })
+  const [masterData, setMasterData] = useState({ size: [], category: [] })
 
   const [formData, setFormData] = useState({
     product_code: "",
     product_name: "",
     colour: "",
     size: "",
+    category : "",
     stock: 0,
     price: 0,
     capital_price: 0
@@ -34,12 +38,13 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
       product_name: "",
       colour: "",
       size: "",
+      category : "",
       stock: 0,
       price: 0,
       capital_price: 0
     })
 
-    setSelectedMasterSize({})
+  setSelectedMaster({ size: {}, category: {} })
   }
 
   const handleCancel = () => {
@@ -124,17 +129,19 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
     }))
   }
 
-  const handleChangeSelectSize = (selectedSize) => {
-    setSelectedMasterSize(selectedSize)
+
+  const handleChangeSelectMaster = (type, selected) => {
+    setSelectedMaster((prev) => ({ ...prev, [type]: selected }))
     setFormData((prevData) => ({
       ...prevData,
-      size: selectedSize.label
+      [type]: selected.label
     }))
   }
 
-  const fetchMasterDataSize = async () => {
-    const url = `${baseUrlAPI}/sizes`
 
+  // Generic fetch master data
+  const fetchMasterData = async (type) => {
+    const url = `${baseUrlAPI}/masters/${type}`;
     try {
       const response = await fetch(url, {
         method: 'GET',
@@ -143,46 +150,41 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
           ...headersAllowNgrok()
         },
       });
-
       if (response.status != 200 && response.status !== 201) {
         Swal.fire({
           title: "Error",
-          text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+          text: `Terdapat Kesalahan Saat Mengambil Data ${type}, Silahkan Refresh`,
           icon: "error",
         });
-
         return
       }
-
       const result = await response.json();
-
       let data = result.data
-      if (data.items == null) {
-        data.items = []
-      }
-
-      const options = data.map((size) => ({
-        label: size.size,
-        value: size.id_size,
+      if (!Array.isArray(data)) data = []
+      const options = data.map((item) => ({
+        label: item.master_name,
+        value: item.id_master,
       }))
-
-      setMasterDataSize(options)
-
-      if (action == "EDIT") {
-        setSelectedMasterSize(options.find((size) => (size.label == editedProduct.size)))
+      setMasterData((prev) => ({ ...prev, [type]: options }))
+      if (action == "EDIT" && editedProduct && editedProduct[type]) {
+        setSelectedMaster((prev) => ({
+          ...prev,
+          [type]: options.find((item) => item.label == editedProduct[type]) || {}
+        }))
       }
     } catch (error) {
       Swal.fire({
         title: "Error",
-        text: "Terdapat Kesalahan Saat Mengambil Data, Silahkan Refresh",
+        text: `Terdapat Kesalahan Saat Mengambil Data ${type}, Silahkan Refresh`,
         icon: "error",
       });
     }
   }
 
   useEffect(() => {
-    fetchMasterDataSize()
-  }, [])
+  fetchMasterData("size")
+  fetchMasterData("category")
+  }, [action, editedProduct])
 
   return (
     <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
@@ -225,21 +227,20 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
             />
           </div>
 
-          {/* <div className='flex flex-col gap-2'>
-            <label className='font-bold text-gray-700'>Ukuran</label>
-            <input
-              type='text'
-              name='size'
-              defaultValue={formData.size}
-              onChange={handleChangeField}
-              required
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
-            />
-          </div> */}
-
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Ukuran</label>
-            <Select required value={selectedMasterSize} name='size' onChange={(value) => handleChangeSelectSize(value)} options={masterDataSize} styles={{
+            <Select required value={selectedMaster.size} name='size' onChange={(value) => handleChangeSelectMaster("size", value)} options={masterData.size} styles={{
+              control: (baseStyles) => ({
+                ...baseStyles,
+                border: "1px solid gray",
+                padding: "8px 6px",
+                borderRadius: "12px"
+              })
+            }} />
+          </div>
+          <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>Kategori</label>
+            <Select required value={selectedMaster.category} name='category' onChange={(value) => handleChangeSelectMaster("category", value)} options={masterData.category} styles={{
               control: (baseStyles, state) => ({
                 ...baseStyles,
                 border: "1px solid gray",
@@ -270,16 +271,22 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
-          <div className='flex flex-col gap-2'>
-            <label className='font-bold text-gray-700'>HPP</label>
-            <input
-              type='number'
-              name='capital_price'
-              defaultValue={formData.capital_price || editedProduct?.capital_price || "0"}
-              onChange={handleChangeField}
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
-            />
-          </div>
+          {isOwner && (
+            <div className='flex flex-col gap-2'>
+              <label className='font-bold text-gray-700'>HPP</label>
+              <input
+                type='number'
+                name='capital_price'
+                defaultValue={formData.capital_price || editedProduct?.capital_price || "0"}
+                onChange={handleChangeField}
+                className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+                disabled={!isOwner}
+              />
+              {!isOwner && (
+                <span className='text-xs text-red-500'>Hanya owner yang dapat mengubah HPP</span>
+              )}
+            </div>
+          )}
           <div className='flex justify-end gap-3 mt-4'>
             <button
               onClick={handleCancel}
@@ -323,7 +330,6 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
     size: "",
     qty: action == "SCAN" ? 1 : 0,
     discount: 0,
-    admin_fee: 0,
     remark: "",
     // total_price: 0,
   })
@@ -343,7 +349,6 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
       size: "",
       qty: 0,
       discount: 0,
-      admin_fee: 0,
       remark: "",
       // total_price: 0,
     })
@@ -392,14 +397,9 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
 
       payload.qty = parseInt(payload.qty)
       payload.discount = parseInt(payload.discount)
-      payload.admin_fee = parseInt(payload.admin_fee)
-      // payload.total_price = parseInt(payload.total_price)
 
       let url = ""
 
-      // if(!payload.created_at) {
-      //   payload.created_at = new Date().toISOString()
-      // }
 
       if (action == "EDIT") {
         url = `${baseUrlAPI}/transaction/${editedTransaction.id_transaction}`
@@ -630,30 +630,6 @@ export function TransactionModal({ isOpen, onClose, transaction: editedTransacti
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
-
-          {/* <div className='flex flex-col gap-2'>
-            <label className='font-bold text-gray-700'>Biaya Admin</label>
-            <input
-              type='number'
-              name='admin_fee'
-              defaultValue={formData.admin_fee || editedTransaction?.admin_fee || "0"}
-              onChange={handleChangeField}
-              required
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
-            />
-          </div> */}
-
-          {/* <div className='flex flex-col gap-2'>
-            <label className='font-bold text-gray-700'>Total Harga</label>
-            <input
-              type='number'
-              name='total_price'
-              defaultValue={formData.total_price || editedTransaction?.total_price || "0"}
-              onChange={handleChangeField}
-              required
-              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
-            />
-          </div> */}
 
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>Keterangan</label>
@@ -936,6 +912,197 @@ export function EditAdminFeeModal({ isOpen, onClose, existingAdmin, onSave, call
               type='number'
               name='admin'
               defaultValue={formData.admin || existingAdmin || "0"}
+              onChange={handleChangeField}
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+            />
+          </div>
+
+          <div className='flex justify-end gap-3 mt-4'>
+            <button
+              type='button'
+              onClick={handleCancel}
+              className='px-6 py-3 rounded-full font-bold text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-200 ease-in'
+            >
+              Batal
+            </button>
+            <button
+              type='submit'
+              className='px-6 py-3 rounded-full font-bold text-white bg-orange-400 hover:bg-orange-500 transition duration-200 ease-in shadow-md'
+            >
+              Simpan
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+
+    
+  );
+}
+
+export function EditHPPModal({ isOpen, onClose, onSave, callFetchAfterUpdate }) {
+  const [productNames, setProductNames] = useState<string[]>([]);
+  const [formData, setFormData] = useState({
+    product_name : "",
+    hpp: 0,
+  })
+  
+
+  const fetchProductNames = async () => {
+    try {
+      const response = await fetch(`${baseUrlAPI}/products/hpp`, {
+        method: "GET",
+        headers: {
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
+        },
+      });
+      if (response.status !== 200 && response.status !== 201) {
+        Swal.fire({
+          title: "Error",
+          text: "Terdapat Kesalahan Saat Mengambil Nama Produk, Silahkan Refresh",
+          icon: "error",
+        });
+        return;
+      }
+      const result = await response.json();
+      setProductNames(Array.isArray(result.data?.items) ? result.data.items : []);
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: "Terdapat Kesalahan Saat Mengambil Nama Produk, Silahkan Refresh",
+        icon: "error",
+      });
+    }
+  };
+
+  useEffect(() => {
+    setFormData({ product_name:'', hpp: 0 })      
+    fetchProductNames();
+  }, [])
+
+  const resetFormData = () => {
+    setFormData({
+      product_name : "",
+      hpp: 0,
+    })
+  }
+
+  const handleCancel = () => {
+    resetFormData()
+    onClose()
+  }
+
+  const handleSubmitForm = async (e) => {
+    e.preventDefault()
+
+    Swal.fire({
+      title: "Loading...",
+      text: "Harap Menunggu",
+      icon: "info",
+      allowOutsideClick: false,
+      showConfirmButton: false,
+    });
+
+    if (formData.hpp <= 0) {
+      Swal.fire({
+        title: "Perhatikan",
+        text: "HPP tidak bisa 0 atau di bawahnya",
+        icon: "info",
+      });
+
+      return
+    }
+
+    try {
+      let payload = formData
+
+      payload.hpp = payload.hpp.toString()
+      payload.product_name = payload.product_name.toString()
+
+      const response = await fetch(`${baseUrlAPI}/products/hpp`, {
+        method: "PUT",
+        headers: {
+          'Content-Type': 'application/json',
+          ...headersAllowNgrok()
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status != 200 && response.status !== 201) {
+        Swal.fire({
+          title: "Error",
+          text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+          icon: "error",
+        });
+        return
+      }
+
+      Swal.fire({
+        title: "Sukses",
+        text: `Berhasil Update HPP ${payload.product_name}`,
+        icon: "success",
+      });
+
+      if (callFetchAfterUpdate) {
+        callFetchAfterUpdate()
+      }
+      onClose()
+      resetFormData()
+    } catch (error) {
+      Swal.fire({
+        title: "Error",
+        text: `Terdapat Kesalahan Saat Mengambil Data, Silahkan Coba Kembali`,
+        icon: "error",
+      });
+      resetFormData()
+    }
+  };
+
+  const handleChangeField = (e) => {
+    const { name, value } = e.target
+
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value
+    }))
+  }
+
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className='fixed inset-0 bg-black/30 flex justify-center items-center z-50'>
+      <div className='bg-white overflow-auto p-8 rounded-2xl shadow-lg w-full max-h-10/12 max-w-lg flex flex-col gap-6'>
+        <span className='font-bold text-2xl text-amber-800 text-center'>Edit HPP Product</span>
+        <form onSubmit={handleSubmitForm} className='flex flex-col gap-4'>
+            <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>Nama Produk</label>
+            <select
+              name='product_name'
+              value={formData.product_name}
+              onChange={handleChangeField}
+              required
+              className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
+            >
+              <option value="">Nama Produk</option>
+              {Array.isArray(productNames)
+                ? productNames.map((productName, index) => (
+                    <option key={index} value={productName}>
+                      {productName}
+                    </option>
+                  ))
+                : null}
+            </select>
+            </div>
+          <div className='flex flex-col gap-2'>
+            <label className='font-bold text-gray-700'>HPP</label>
+            <input
+              type='number'
+              name='hpp'
+              defaultValue={formData.hpp || "0"}
               onChange={handleChangeField}
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />

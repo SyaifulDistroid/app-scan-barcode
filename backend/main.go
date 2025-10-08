@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -85,7 +86,8 @@ func main() {
         id_master INTEGER PRIMARY KEY AUTOINCREMENT,
         master_code TEXT,
 		master_name TEXT,
-		created_at TEXT DEFAULT CURRENT_TIMESTAMP
+		created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+		updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )`)
 	if err != nil {
 		log.Fatal(err)
@@ -113,6 +115,22 @@ func main() {
 		}
 	}
 
+	var columnExistsProduct bool
+	err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('products') WHERE name='category'").Scan(&columnExistsProduct)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Fatal(err)
+		}
+	}
+
+	if !columnExistsProduct {
+		_, err = db.Exec(`ALTER TABLE products ADD COLUMN category TEXT DEFAULT ''`)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Kolom category berhasil ditambahkan ke tabel products")
+	}
+
 	app := fiber.New()
 	app.Use(cors.New())
 
@@ -126,6 +144,8 @@ func main() {
 	app.Get("/product/:id", getProduct)
 	app.Delete("/product/:id", deleteProduct)
 	app.Post("/print/products", printProducts)
+	app.Put("/products/hpp", editHPP)
+	app.Get("/products/hpp", getProductHPP)
 
 	// CRUD Transactions
 	app.Post("/transactions", addTransaction)
@@ -135,7 +155,7 @@ func main() {
 	app.Delete("/transaction/:id", deleteTransaction)
 
 	// List Size
-	app.Get("/sizes", listSizes)
+	app.Get("/masters/:code", GetMaster)
 
 	// Static file untuk akses barcode
 	app.Static("/", "./public")
@@ -202,10 +222,10 @@ func addProduct(c *fiber.Ctx) error {
 	}
 
 	res, err := db.Exec(`
-        INSERT INTO products (product_code, product_name, colour, size, stock, price, capital_price, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        INSERT INTO products (product_code, product_name, colour, size, stock, price, capital_price, created_at, updated_at, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		product.ProductCode, product.ProductName, product.Colour,
-		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), time.Now())
+		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), time.Now(), product.Category)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -237,10 +257,10 @@ func editProduct(c *fiber.Ctx) error {
 	}
 
 	_, err := db.Exec(`
-        UPDATE products SET product_code=?, product_name=?, colour=?, size=?, stock=?, price=?, capital_price=?, updated_at=?
+        UPDATE products SET product_code=?, product_name=?, colour=?, size=?, stock=?, price=?, capital_price=?, updated_at=?, category=?
         WHERE id_product = ?`,
 		product.ProductCode, product.ProductName, product.Colour,
-		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), id)
+		product.Size, product.Stock, product.Price, product.CapitalPrice, time.Now(), product.Category, id)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -252,6 +272,35 @@ func editProduct(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
 		Message: "Product updated successfully",
+		Data:    nil, // or return the updated product
+	})
+}
+
+func editHPP(c *fiber.Ctx) error {
+	product := new(model.HPP)
+	if err := c.BodyParser(product); err != nil {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	_, err := db.Exec(`
+        UPDATE products SET capital_price=?, updated_at=?
+        WHERE product_name = ?`,
+		product.HPP, time.Now(), product.ProductName)
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Product HPP updated successfully",
 		Data:    nil, // or return the updated product
 	})
 }
@@ -284,7 +333,7 @@ func listProducts(c *fiber.Ctx) error {
 	}
 
 	var args []interface{}
-	var strQuery = "SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products WHERE is_active = 1"
+	var strQuery = "SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at, category FROM products WHERE is_active = 1"
 
 	if search != "" {
 		strQuery += " AND (product_code LIKE ? COLLATE NOCASE OR product_name LIKE ? COLLATE NOCASE OR colour LIKE ? COLLATE NOCASE OR size LIKE ? COLLATE NOCASE)"
@@ -310,7 +359,7 @@ func listProducts(c *fiber.Ctx) error {
 	for rows.Next() {
 		var it model.Product
 		if err := rows.Scan(&it.IDProduct, &it.ProductCode, &it.ProductName, &it.Colour, &it.Size,
-			&it.Stock, &it.Price, &it.CapitalPrice, &it.IsActive, &it.CreatedAt, &it.UpdatedAt); err != nil {
+			&it.Stock, &it.Price, &it.CapitalPrice, &it.IsActive, &it.CreatedAt, &it.UpdatedAt, &it.Category); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -328,6 +377,43 @@ func listProducts(c *fiber.Ctx) error {
 			"total": total,
 			"page":  page,
 			"limit": limit,
+		},
+	})
+}
+
+func getProductHPP(c *fiber.Ctx) error {
+
+	var strQuery = "SELECT product_name FROM products WHERE is_active = 1 group by product_name"
+
+	rows, err := db.Query(strQuery)
+
+	if err != nil {
+		return c.Status(http.StatusInternalServerError).JSON(model.Response{
+			Code:    http.StatusInternalServerError,
+			Message: err.Error(),
+			Data:    nil,
+		})
+	}
+	defer rows.Close()
+
+	var products []string
+	for rows.Next() {
+		var it string
+		if err := rows.Scan(&it); err != nil {
+			return c.Status(http.StatusInternalServerError).JSON(model.Response{
+				Code:    http.StatusInternalServerError,
+				Message: err.Error(),
+				Data:    nil,
+			})
+		}
+		products = append(products, it)
+	}
+
+	return c.Status(http.StatusOK).JSON(model.Response{
+		Code:    http.StatusOK,
+		Message: "Products retrieved successfully",
+		Data: fiber.Map{
+			"items": products,
 		},
 	})
 }
@@ -399,6 +485,7 @@ func addTransaction(c *fiber.Ctx) error {
 func listTransactions(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
+	search := c.Query("search")
 	offset := (page - 1) * limit
 
 	dateFrom := c.Query("start_date")
@@ -412,11 +499,20 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
+	countQuery := "SELECT COUNT(*) FROM transactions WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?"
+	var countArgs []interface{}
 	var total int
-	err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM transactions 
-		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?`, dateFrom, dateTo).Scan(&total)
+
+	countArgs = append(countArgs, dateFrom, dateTo)
+
+	if search != "" {
+		countQuery += " AND (product_code LIKE ? COLLATE NOCASE OR product_name LIKE ? COLLATE NOCASE OR colour LIKE ? COLLATE NOCASE OR size LIKE ? COLLATE NOCASE)"
+		searchLike := "%" + search + "%"
+		countArgs = append(countArgs, searchLike, searchLike, searchLike, searchLike)
+	}
+
+	err := db.QueryRow(countQuery, countArgs...).Scan(&total)
+
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -425,12 +521,23 @@ func listTransactions(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query(`
-		SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at 
-		FROM transactions 
-		WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ? 
-		ORDER BY product_name ASC
-		LIMIT ? OFFSET ?`, dateFrom, dateTo, limit, offset)
+	var args []interface{}
+
+	var strQuery = "SELECT id_transaction, id_product, product_code, product_name, colour, size, qty, discount, admin_fee, remark, total_price, created_at FROM transactions WHERE is_active = 1 AND DATE(created_at) BETWEEN ? AND ?"
+
+	args = append(args, dateFrom, dateTo)
+
+	if search != "" {
+		strQuery += " AND (product_code LIKE ? COLLATE NOCASE OR product_name LIKE ? COLLATE NOCASE OR colour LIKE ? COLLATE NOCASE OR size LIKE ? COLLATE NOCASE)"
+		searchLike := "%" + search + "%"
+		args = append(args, searchLike, searchLike, searchLike, searchLike)
+	}
+
+	strQuery += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := db.Query(strQuery, args...)
+
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -518,7 +625,7 @@ func editTransaction(c *fiber.Ctx) error {
 	}
 
 	// Hitung total harga
-	totalPrice := (price - trx.Discount - trx.AdminFee) * float64(trx.Qty)
+	totalPrice := (price - trx.Discount) * float64(trx.Qty)
 
 	_, err = db.Exec(`
         UPDATE transactions SET id_product=?, product_code=?, product_name=?, colour=?, size=?, qty=?, discount=?, admin_fee=?, remark=?, total_price=? WHERE id_transaction = ?`,
@@ -583,7 +690,7 @@ func getProduct(c *fiber.Ctx) error {
 
 	var product model.Product
 
-	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at FROM products where is_active = 1 and id_product = ?", id).Scan(&product.IDProduct, &product.ProductCode, &product.ProductName, &product.Colour, &product.Size, &product.Stock, &product.Price, &product.CapitalPrice, &product.IsActive, &product.CreatedAt, &product.UpdatedAt)
+	err := db.QueryRow("SELECT id_product, product_code, product_name, colour, size, stock, price, capital_price, is_active, created_at, updated_at, category FROM products where is_active = 1 and id_product = ?", id).Scan(&product.IDProduct, &product.ProductCode, &product.ProductName, &product.Colour, &product.Size, &product.Stock, &product.Price, &product.CapitalPrice, &product.IsActive, &product.CreatedAt, &product.UpdatedAt, &product.Category)
 
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
@@ -714,8 +821,10 @@ func deleteTransaction(c *fiber.Ctx) error {
 	})
 }
 
-func listSizes(c *fiber.Ctx) error {
-	rows, err := db.Query("SELECT id_master, master_name FROM master WHERE master_code = 'SIZE' ORDER BY id_master ASC")
+func GetMaster(c *fiber.Ctx) error {
+	code := c.Params("code")
+	
+	rows, err := db.Query("SELECT id_master, master_code, master_name FROM master WHERE master_code = ? ORDER BY id_master ASC", strings.ToUpper(code))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -725,22 +834,22 @@ func listSizes(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	var sizes []model.Size
+	var masters []model.Master
 	for rows.Next() {
-		var it model.Size
-		if err := rows.Scan(&it.ID, &it.Size); err != nil {
+		var master model.Master
+		if err := rows.Scan(&master.IDMaster, &master.MasterCode, &master.MasterName); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
 				Data:    nil,
 			})
 		}
-		sizes = append(sizes, it)
+		masters = append(masters, master)
 	}
 	return c.Status(http.StatusOK).JSON(model.Response{
 		Code:    http.StatusOK,
-		Message: "Sizes retrieved successfully",
-		Data:    sizes,
+		Message: "data master retrieved successfully",
+		Data:    masters,
 	})
 }
 
@@ -1032,6 +1141,7 @@ func listSummary(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 	offset := (page - 1) * limit
+	category := strings.ToUpper(c.Query("category", "all"))
 
 	dateFrom := c.Query("start_date")
 	dateTo := c.Query("end_date")
@@ -1044,17 +1154,23 @@ func listSummary(c *fiber.Ctx) error {
 		})
 	}
 
+	if category == "ALL" || category == "" {
+		category = " AND p.category IN ('HOMEMADE', 'SUBBRAND', 'SUPPLIER')"
+	}else{
+		category = fmt.Sprintf(" AND p.category = '%s'", category)
+	}
+
 	var total int
-	err := db.QueryRow(`
+	err := db.QueryRow(fmt.Sprintf(`
 		SELECT COUNT(*) AS jumlah_hari
 		FROM (
 			SELECT COUNT(*) AS total_transaksi
 			FROM transactions t
 			JOIN products p ON t.id_product = p.id_product 
 			WHERE t.is_active = 1 
-			AND DATE(t.created_at) BETWEEN ? AND ?
+			AND DATE(t.created_at) BETWEEN ? AND ? %s
 			GROUP BY DATE(t.created_at)
-		) AS daily_count;`, dateFrom, dateTo).Scan(&total)
+		) AS daily_count`,category), dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1082,15 +1198,15 @@ func listSummary(c *fiber.Ctx) error {
 		})
 	}
 
-	rows, err := db.Query(`
+	rows, err := db.Query(fmt.Sprintf(`
 	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
 		FROM transactions t 
 		JOIN products p
 		ON t.id_product = p.id_product 
-		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? %s
 		GROUP by DATE(t.created_at)
 		ORDER by DATE(t.created_at) ASC
-		LIMIT ? OFFSET ?`, dateFrom, dateTo, limit, offset)
+		LIMIT ? OFFSET ?`,category), dateFrom, dateTo, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1102,7 +1218,8 @@ func listSummary(c *fiber.Ctx) error {
 
 	totalPriceSum := 0
 	totalProfitSum := 0
-	TotalNetProfit := 0
+	totalNetProfit := 0
+	totalQtySum := 0
 
 	var trxs []model.Summary
 	for rows.Next() {
@@ -1120,7 +1237,8 @@ func listSummary(c *fiber.Ctx) error {
 
 		totalPriceSum += int(it.TotalPrice)
 		totalProfitSum += int(it.TotalProfit)
-		TotalNetProfit += int(it.TotalNetProfit)
+		totalNetProfit += int(it.TotalNetProfit)
+		totalQtySum += it.TotalQty
 	}
 
 	return c.Status(http.StatusOK).JSON(model.Response{
@@ -1130,7 +1248,8 @@ func listSummary(c *fiber.Ctx) error {
 			"items":             trxs,
 			"total_price":       totalPriceSum,
 			"total_profit":      totalProfitSum,
-			"total_net_profit":  TotalNetProfit,
+			"total_net_profit":  totalNetProfit,
+			"total_qty_sum":     totalQtySum,
 			"admin_fee_percent": adminFee,
 			"total":             total,
 			"page":              page,
@@ -1158,7 +1277,7 @@ func editAdmin(c *fiber.Ctx) error {
 		})
 	}
 
-	_, err = db.Exec("UPDATE master SET master_name = ? WHERE master_code = 'ADMIN'", admin.Admin)
+	_, err = db.Exec("UPDATE master SET master_name = ? , updated_at = ? WHERE master_code = 'ADMIN'", admin.Admin, time.Now())
 
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
@@ -1178,6 +1297,7 @@ func editAdmin(c *fiber.Ctx) error {
 func printSummary(c *fiber.Ctx) error {
 	dateFrom := c.Query("start_date")
 	dateTo := c.Query("end_date")
+	category := c.Query("category", "all")
 
 	if dateFrom == "" || dateTo == "" {
 		return c.Status(http.StatusBadRequest).JSON(model.Response{
@@ -1187,14 +1307,25 @@ func printSummary(c *fiber.Ctx) error {
 		})
 	}
 
+	strCategory := strings.ToUpper(category)
+
+	if strCategory == "ALL" || strCategory == "" {
+		strCategory = " AND p.category IN ('HOMEMADE', 'SUBBRAND', 'SUPPLIER')"
+	}else{
+		strCategory = fmt.Sprintf(" AND p.category = '%s'", strCategory)
+	}	
+
 	var total int
-	err := db.QueryRow(`
-		SELECT COUNT(*) 
-		FROM transactions t 
-		JOIN products p
-		ON t.id_product = p.id_product 
-		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ?
-		GROUP by DATE(t.created_at)`, dateFrom, dateTo).Scan(&total)
+	err := db.QueryRow(fmt.Sprintf(`
+		SELECT COUNT(*) AS jumlah_hari
+		FROM (
+			SELECT COUNT(*) AS total_transaksi
+			FROM transactions t
+			JOIN products p ON t.id_product = p.id_product 
+			WHERE t.is_active = 1 
+			AND DATE(t.created_at) BETWEEN ? AND ? %s
+			GROUP BY DATE(t.created_at)
+		) AS daily_count`,strCategory), dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1221,15 +1352,15 @@ func printSummary(c *fiber.Ctx) error {
 			Data:    nil,
 		})
 	}
-
-	rows, err := db.Query(`
+	
+	rows, err := db.Query(fmt.Sprintf(`
 	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
 		FROM transactions t 
 		JOIN products p
 		ON t.id_product = p.id_product 
-		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? 
+		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? %s
 		GROUP by DATE(t.created_at)
-		ORDER by DATE(t.created_at) ASC`, dateFrom, dateTo)
+		ORDER by DATE(t.created_at) ASC`,strCategory), dateFrom, dateTo)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1260,7 +1391,7 @@ func printSummary(c *fiber.Ctx) error {
 		}
 		it.TotalProfit = it.TotalPrice - it.TotalCapitalPrice
 		it.TotalAdminFee = adminFee * float64(it.TotalProfit) / 100
-		it.TotalNetProfit = it.TotalProfit - it.TotalAdminFee
+		it.TotalNetProfit = it.TotalPrice - (adminFee * float64(it.TotalPrice) / 100) - it.TotalCapitalPrice
 
 		data = append(data, []string{
 			fmt.Sprintf("%d", no),
@@ -1282,7 +1413,7 @@ func printSummary(c *fiber.Ctx) error {
 	pdf := gofpdf.New("L", "mm", "A4", "")
 	pdf.SetFont("Arial", "B", 12)
 	pdf.AddPage()
-	pdf.Cell(0, 10, fmt.Sprintf("Report Period: %s to %s", dateFrom, dateTo))
+	pdf.Cell(0, 10, fmt.Sprintf("Report Period: %s to %s  - Category : %s", dateFrom, dateTo, strings.ToUpper(category)))
 	pdf.Ln(15)
 
 	// Generate PDF file
