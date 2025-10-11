@@ -383,7 +383,7 @@ func listProducts(c *fiber.Ctx) error {
 
 func getProductHPP(c *fiber.Ctx) error {
 
-	var strQuery = "SELECT product_name FROM products WHERE is_active = 1 group by product_name"
+	var strQuery = "SELECT product_name, capital_price FROM products WHERE is_active = 1 group by product_name"
 
 	rows, err := db.Query(strQuery)
 
@@ -396,10 +396,16 @@ func getProductHPP(c *fiber.Ctx) error {
 	}
 	defer rows.Close()
 
-	var products []string
+	type productHPP struct {
+		ProductName string  `json:"product_name"`
+		HPP         float64 `json:"hpp"`
+	}
+
+	var products []productHPP
+
 	for rows.Next() {
-		var it string
-		if err := rows.Scan(&it); err != nil {
+		var it productHPP
+		if err := rows.Scan(&it.ProductName, &it.HPP); err != nil {
 			return c.Status(http.StatusInternalServerError).JSON(model.Response{
 				Code:    http.StatusInternalServerError,
 				Message: err.Error(),
@@ -823,7 +829,13 @@ func deleteTransaction(c *fiber.Ctx) error {
 
 func GetMaster(c *fiber.Ctx) error {
 	code := c.Params("code")
-	
+	if code == "" {
+		return c.Status(http.StatusBadRequest).JSON(model.Response{
+			Code:    http.StatusBadRequest,
+			Message: "Master code is required",
+			Data:    nil,
+		})
+	}
 	rows, err := db.Query("SELECT id_master, master_code, master_name FROM master WHERE master_code = ? ORDER BY id_master ASC", strings.ToUpper(code))
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
@@ -1025,7 +1037,6 @@ func generateReport(c *fiber.Ctx) error {
 	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalProfitSum)), "1", 0, "C", false, 0, "")
 	err = pdf.OutputFileAndClose(filename)
 	if err != nil {
-		fmt.Println(err.Error())
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: "Failed to create report file",
@@ -1141,7 +1152,7 @@ func listSummary(c *fiber.Ctx) error {
 	page := c.QueryInt("page", 1)
 	limit := c.QueryInt("limit", 10)
 	offset := (page - 1) * limit
-	category := strings.ToUpper(c.Query("category", "all"))
+	category := strings.ToUpper(c.Query("category", "ocik"))
 
 	dateFrom := c.Query("start_date")
 	dateTo := c.Query("end_date")
@@ -1154,9 +1165,9 @@ func listSummary(c *fiber.Ctx) error {
 		})
 	}
 
-	if category == "ALL" || category == "" {
-		category = " AND p.category IN ('HOMEMADE', 'SUBBRAND', 'SUPPLIER')"
-	}else{
+	if category == "OCIK" || category == "" {
+		category = " AND p.category IN ('OCIK','HOMEMADE', 'SUBBRAND', 'SUPPLIER')"
+	} else {
 		category = fmt.Sprintf(" AND p.category = '%s'", category)
 	}
 
@@ -1170,7 +1181,7 @@ func listSummary(c *fiber.Ctx) error {
 			WHERE t.is_active = 1 
 			AND DATE(t.created_at) BETWEEN ? AND ? %s
 			GROUP BY DATE(t.created_at)
-		) AS daily_count`,category), dateFrom, dateTo).Scan(&total)
+		) AS daily_count`, category), dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1206,7 +1217,7 @@ func listSummary(c *fiber.Ctx) error {
 		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? %s
 		GROUP by DATE(t.created_at)
 		ORDER by DATE(t.created_at) ASC
-		LIMIT ? OFFSET ?`,category), dateFrom, dateTo, limit, offset)
+		LIMIT ? OFFSET ?`, category), dateFrom, dateTo, limit, offset)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1311,9 +1322,9 @@ func printSummary(c *fiber.Ctx) error {
 
 	if strCategory == "ALL" || strCategory == "" {
 		strCategory = " AND p.category IN ('HOMEMADE', 'SUBBRAND', 'SUPPLIER')"
-	}else{
+	} else {
 		strCategory = fmt.Sprintf(" AND p.category = '%s'", strCategory)
-	}	
+	}
 
 	var total int
 	err := db.QueryRow(fmt.Sprintf(`
@@ -1325,7 +1336,7 @@ func printSummary(c *fiber.Ctx) error {
 			WHERE t.is_active = 1 
 			AND DATE(t.created_at) BETWEEN ? AND ? %s
 			GROUP BY DATE(t.created_at)
-		) AS daily_count`,strCategory), dateFrom, dateTo).Scan(&total)
+		) AS daily_count`, strCategory), dateFrom, dateTo).Scan(&total)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1352,7 +1363,7 @@ func printSummary(c *fiber.Ctx) error {
 			Data:    nil,
 		})
 	}
-	
+
 	rows, err := db.Query(fmt.Sprintf(`
 	SELECT DATE(t.created_at) as tanggal, sum(t.qty) as total_qty, sum(t.total_price) as total_price , sum(p.capital_price * t.qty) as total_capital_price
 		FROM transactions t 
@@ -1360,7 +1371,7 @@ func printSummary(c *fiber.Ctx) error {
 		ON t.id_product = p.id_product 
 		WHERE t.is_active = 1 AND DATE(t.created_at) BETWEEN ? AND ? %s
 		GROUP by DATE(t.created_at)
-		ORDER by DATE(t.created_at) ASC`,strCategory), dateFrom, dateTo)
+		ORDER by DATE(t.created_at) ASC`, strCategory), dateFrom, dateTo)
 	if err != nil {
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
@@ -1460,7 +1471,6 @@ func printSummary(c *fiber.Ctx) error {
 	pdf.CellFormat(totalValueWidth, 10, utils.FormatFloat(float64(totalNetProfitSum)), "1", 0, "C", false, 0, "")
 	err = pdf.OutputFileAndClose(filename)
 	if err != nil {
-		fmt.Println(err.Error())
 		return c.Status(http.StatusInternalServerError).JSON(model.Response{
 			Code:    http.StatusInternalServerError,
 			Message: "Failed to create report file",

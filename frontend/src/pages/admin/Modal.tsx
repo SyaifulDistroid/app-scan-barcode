@@ -257,6 +257,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='stock'
               defaultValue={formData.stock || editedProduct?.stock || "0"}
               onChange={handleChangeField}
+              onFocus={(e) => e.target.select()} 
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
@@ -268,6 +269,7 @@ export function ProductModal({ isOpen, onClose, product: editedProduct, onSave, 
               name='price'
               defaultValue={formData.price || editedProduct?.price || "0"}
               onChange={handleChangeField}
+              onFocus={(e) => e.target.select()}    
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
@@ -942,7 +944,7 @@ export function EditAdminFeeModal({ isOpen, onClose, existingAdmin, onSave, call
 }
 
 export function EditHPPModal({ isOpen, onClose, onSave, callFetchAfterUpdate }) {
-  const [productNames, setProductNames] = useState<string[]>([]);
+  const [products, setProducts] = useState<{ product_name: string; hpp: number }[]>([]);
   const [formData, setFormData] = useState({
     product_name : "",
     hpp: 0,
@@ -967,7 +969,7 @@ export function EditHPPModal({ isOpen, onClose, onSave, callFetchAfterUpdate }) 
         return;
       }
       const result = await response.json();
-      setProductNames(Array.isArray(result.data?.items) ? result.data.items : []);
+      setProducts(Array.isArray(result.data?.items) ? result.data.items : []);
     } catch (error) {
       Swal.fire({
         title: "Error",
@@ -1061,13 +1063,22 @@ export function EditHPPModal({ isOpen, onClose, onSave, callFetchAfterUpdate }) 
   };
 
   const handleChangeField = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
 
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value
-    }))
-  }
+    if (name === 'product_name') {
+      const selectedProduct = products.find((p) => p.product_name === value);
+      setFormData((prevData) => ({
+        ...prevData,
+        product_name: value,
+        hpp: selectedProduct ? selectedProduct.hpp : 0,
+      }));
+    } else {
+      setFormData((prevData) => ({
+        ...prevData,
+        [name]: value,
+      }));
+    }
+  };
 
   if (!isOpen) {
     return null;
@@ -1087,23 +1098,23 @@ export function EditHPPModal({ isOpen, onClose, onSave, callFetchAfterUpdate }) 
               required
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             >
-              <option value="">Nama Produk</option>
-              {Array.isArray(productNames)
-                ? productNames.map((productName, index) => (
-                    <option key={index} value={productName}>
-                      {productName}
-                    </option>
-                  ))
-                : null}
+              <option value="">Pilih Nama Produk</option>
+              {products.map((product, index) => (
+                <option key={index} value={product.product_name}>
+                  {product.product_name}
+                </option>
+              ))}
             </select>
+
             </div>
           <div className='flex flex-col gap-2'>
             <label className='font-bold text-gray-700'>HPP</label>
             <input
               type='number'
               name='hpp'
-              defaultValue={formData.hpp || "0"}
-              onChange={handleChangeField}
+              value={formData.hpp}
+              onChange={handleChangeField}              
+              onFocus={(e) => e.target.select()} 
               className='px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-gray-300'
             />
           </div>
